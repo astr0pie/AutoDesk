@@ -13,7 +13,7 @@ router.use(authMiddleware);
 // Main Dashboard
 router.get('/', async (req, res) => {
     try {
-        // Query data mobil + detail peminjam aktif
+        // Query data mobil + peminjam aktif hari ini
         const mobilRes = await db.query(`
             SELECT m.id, m.plat_nomor, m.merk_tipe, m.kategori, m.kapasitas, m.tahun, m.status, m.kondapat_catatan,
                    p.id as peminjaman_id,
@@ -26,8 +26,11 @@ router.get('/', async (req, res) => {
                    u.username as username_peminjam,
                    u.nama_seksi as seksi_peminjam
             FROM mobil m
-            LEFT JOIN peminjaman p ON m.id = p.mobil_id AND p.status_peminjaman IN ('APPROVED', 'PENDING')
+            LEFT JOIN peminjaman p ON m.id = p.mobil_id 
+                 AND p.status_peminjaman IN ('APPROVED', 'PENDING')
+                 AND CURRENT_DATE BETWEEN DATE(p.tgl_mulai) AND DATE(p.tgl_selesai)
             LEFT JOIN users u ON p.user_id = u.id
+            ORDER BY m.id ASC
         `);
         const mobilList = mobilRes.rows;
         
@@ -58,17 +61,53 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman
+// API Endpoint: Get Daftar Jadwal Ter-booking untuk Kalender
+router.get('/mobil/:id/jadwal', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(`
+            SELECT p.id, p.tgl_mulai, p.tgl_selesai, p.tujuan_peminjaman, p.status_peminjaman,
+                   u.nama as nama_peminjam, u.nama_seksi
+            FROM peminjaman p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.mobil_id = $1 AND p.status_peminjaman IN ('APPROVED', 'PENDING')
+            ORDER BY p.tgl_mulai ASC
+        `, [id]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Gagal mengambil jadwal' });
+    }
+});
+
+// Pegawai: Ajukan Peminjaman (Dengan Cek Overlap Tanggal)
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
-    
-    const start = new Date(tgl_mulai);
-    const end = new Date(tgl_selesai);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
     try {
+        // Cek Bentrok Jadwal
+        const overlapCheck = await db.query(`
+            SELECT id FROM peminjaman 
+            WHERE mobil_id = $1 
+              AND status_peminjaman IN ('APPROVED', 'PENDING')
+              AND (tgl_mulai <= $3 AND tgl_selesai >= $2)
+        `, [mobil_id, tgl_mulai, tgl_selesai]);
+
+        if (overlapCheck.rows.length > 0) {
+            return res.status(400).send(`
+                <script>
+                    alert('Gagal! Tanggal yang Anda pilih sudah ter-booking oleh pegawai lain.');
+                    window.location.href = '/dashboard';
+                </script>
+            `);
+        }
+
+        const start = new Date(tgl_mulai);
+        const end = new Date(tgl_selesai);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+
         await db.query(
             'INSERT INTO peminjaman (user_id, mobil_id, tujuan_peminjaman, tgl_mulai, tgl_selesai, lama_pinjam_hari, status_peminjaman) VALUES ($1, $2, $3, $4, $5, $6, $7)',
             [userId, mobil_id, tujuan, tgl_mulai, tgl_selesai, diffDays, 'PENDING']
@@ -76,11 +115,11 @@ router.post('/pinjam', async (req, res) => {
         res.redirect('/dashboard');
     } catch (err) {
         console.error(err);
-        res.status(500).send('Gagal mengajukan peminjaman');
+        res.status(500).send('Gagal mengajukan peminjaman: ' + err.message);
     }
 });
 
-// Pegawai: Pengembalian + Update Catatan Kondisi
+// Pegawai: Pengembalian Mobil
 router.post('/kembalikan', async (req, res) => {
     const { peminjaman_id, mobil_id, catatan_kondisi } = req.body;
     try {
@@ -146,9 +185,7 @@ router.post('/mobil/hapus', async (req, res) => {
 // Admin: Edit Data Mobil
 router.post('/mobil/edit', async (req, res) => {
     if (req.session.user.role !== 'admin') return res.status(403).send('Forbidden');
-    
     const { mobil_id, plat_nomor, merk_tipe, kategori, kapasitas, tahun, status, kondapat_catatan } = req.body;
-    
     const catatan = kondapat_catatan ? kondapat_catatan.trim() : '';
 
     try {

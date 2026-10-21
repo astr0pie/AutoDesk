@@ -49,27 +49,34 @@
                 </div>
             </div>
 
-            <!-- Tombol Opsi Edit & Hapus Mobil -->
-            <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+            <!-- Tombol Opsi Edit, Hapus & Cek Jadwal -->
+            <div class="pt-3 border-t border-slate-200 space-y-2">
                 <button type="button" 
-                    data-id="<%= m.id %>"
-                    data-plat="<%= m.plat_nomor %>"
-                    data-merk="<%= m.merk_tipe %>"
-                    data-kategori="<%= m.kategori %>"
-                    data-kapasitas="<%= m.kapasitas %>"
-                    data-tahun="<%= m.tahun %>"
-                    data-status="<%= m.status %>"
-                    data-catatan="<%= m.kondapat_catatan || '' %>"
-                    onclick="openEditModal(this)" 
-                    class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-brandBlue font-bold text-xs rounded-lg transition border border-blue-200 flex items-center gap-1">
-                    ✏️ Edit
+                    onclick="openAdminJadwalModal('<%= m.id %>', '<%= m.merk_tipe %>', '<%= m.plat_nomor %>')"
+                    class="w-full py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-lg transition border border-amber-200 flex items-center justify-center gap-1">
+                    📌 Lihat Jadwal Booking
                 </button>
-                <form action="/dashboard/mobil/hapus" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?');">
-                    <input type="hidden" name="mobil_id" value="<%= m.id %>">
-                    <button type="submit" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-lg transition border border-rose-200 flex items-center gap-1">
-                        🗑️ Hapus
+                <div class="flex justify-end gap-2">
+                    <button type="button" 
+                        data-id="<%= m.id %>"
+                        data-plat="<%= m.plat_nomor %>"
+                        data-merk="<%= m.merk_tipe %>"
+                        data-kategori="<%= m.kategori %>"
+                        data-kapasitas="<%= m.kapasitas %>"
+                        data-tahun="<%= m.tahun %>"
+                        data-status="<%= m.status %>"
+                        data-catatan="<%= m.kondapat_catatan || '' %>"
+                        onclick="openEditModal(this)" 
+                        class="w-full py-1.5 bg-blue-50 hover:bg-blue-100 text-brandBlue font-bold text-xs rounded-lg transition border border-blue-200 flex items-center justify-center gap-1">
+                        ✏️ Edit
                     </button>
-                </form>
+                    <form action="/dashboard/mobil/hapus" method="POST" class="w-full" onsubmit="return confirm('Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?');">
+                        <input type="hidden" name="mobil_id" value="<%= m.id %>">
+                        <button type="submit" class="w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-lg transition border border-rose-200 flex items-center justify-center gap-1">
+                            🗑️ Hapus
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
         <% }) %>
@@ -128,6 +135,27 @@
                 <button type="submit" class="px-4 py-2 bg-brandBlue hover:bg-blue-800 text-white font-bold text-xs rounded-lg transition">Simpan Perubahan</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Modal Admin Cek Jadwal -->
+<div id="adminJadwalModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4 border-b pb-3">
+            <div>
+                <h3 id="adminJadwalTitle" class="text-lg font-bold text-brandBlue"></h3>
+                <p id="adminJadwalPlat" class="text-xs text-slate-500 font-mono"></p>
+            </div>
+            <button type="button" onclick="closeAdminJadwalModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+        </div>
+
+        <div id="adminJadwalList" class="space-y-2">
+            <p class="text-xs text-slate-400">Memuat jadwal...</p>
+        </div>
+
+        <div class="mt-6 pt-3 border-t flex justify-end">
+            <button type="button" onclick="closeAdminJadwalModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition">Tutup</button>
+        </div>
     </div>
 </div>
 
@@ -215,6 +243,51 @@ function openEditModal(btn) {
 
 function closeEditModal() {
     const modal = document.getElementById('editModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function openAdminJadwalModal(mobilId, merk, plat) {
+    document.getElementById('adminJadwalTitle').innerText = merk;
+    document.getElementById('adminJadwalPlat').innerText = plat;
+
+    const container = document.getElementById('adminJadwalList');
+    container.innerHTML = '<p class="text-xs text-slate-400">Memuat data jadwal...</p>';
+
+    fetch(`/dashboard/mobil/${mobilId}/jadwal`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.length === 0) {
+                container.innerHTML = '<div class="p-3 bg-emerald-50 text-emerald-800 rounded-lg text-xs">Belum ada peminjaman terdaftar pada unit ini.</div>';
+                return;
+            }
+            let html = '';
+            data.forEach(item => {
+                const tglStart = new Date(item.tgl_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const tglEnd = new Date(item.tgl_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const badgeColor = item.status_peminjaman === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+
+                html += `
+                    <div class="p-3 border border-slate-200 bg-slate-50 rounded-lg text-xs space-y-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-900">${item.nama_peminjam} (${item.nama_seksi || '-'})</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeColor}">${item.status_peminjaman}</span>
+                        </div>
+                        <p class="text-slate-600"><strong>Tujuan:</strong> ${item.tujuan_peminjaman}</p>
+                        <p class="text-brandBlue font-semibold">📅 ${tglStart} s/d ${tglEnd}</p>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        });
+
+    const modal = document.getElementById('adminJadwalModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeAdminJadwalModal() {
+    const modal = document.getElementById('adminJadwalModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 }
