@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     try {
         const { show_all, bulan, tahun } = req.query;
 
-        // Query data mobil + peminjam aktif hari ini
+        // Query data mobil + peminjam aktif hari ini (Status APPROVED)
         const mobilRes = await db.query(`
             SELECT m.id, m.plat_nomor, m.merk_tipe, m.kategori, m.kapasitas, m.tahun, m.status, m.kondapat_catatan,
                    p.id as peminjaman_id,
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
                    u.nama_seksi as seksi_peminjam
             FROM mobil m
             LEFT JOIN peminjaman p ON m.id = p.mobil_id 
-                 AND p.status_peminjaman IN ('APPROVED', 'PENDING')
+                 AND p.status_peminjaman = 'APPROVED'
                  AND CURRENT_DATE BETWEEN DATE(p.tgl_mulai) AND DATE(p.tgl_selesai)
             LEFT JOIN users u ON p.user_id = u.id
             ORDER BY m.id ASC
@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
             let whereClause = "WHERE 1=1";
             let queryParams = [];
 
-            // Filtering bawaan: 1 bulan terakhir jika show_all tidak aktif & tidak ada filter bulan spesifik
+            // Filtering bawaan: 1 bulan terakhir jika show_all tidak aktif & tidak ada filter bulan
             if (show_all !== 'true' && !bulan) {
                 whereClause += " AND p.tgl_mulai >= NOW() - INTERVAL '1 month'";
             }
@@ -63,14 +63,12 @@ router.get('/', async (req, res) => {
 
             const allLogs = peminjamanRes.rows;
 
-            // Pemisahan log berdasarkan kategori
-            const pendingList = allLogs.filter(p => p.status_peminjaman === 'PENDING');
+            // Pemisahan log: Sedang Dipinjam (APPROVED) dan Selesai/Ditolak (RETURNED / REJECTED)
             const approvedList = allLogs.filter(p => p.status_peminjaman === 'APPROVED');
             const finishedList = allLogs.filter(p => p.status_peminjaman === 'RETURNED' || p.status_peminjaman === 'REJECTED');
 
             res.render('dashboard_admin', { 
                 mobilList, 
-                pendingList,
                 approvedList,
                 finishedList,
                 showAll: show_all === 'true',
@@ -102,7 +100,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// API Endpoint: Get Daftar Jadwal Ter-booking untuk Kalender
+// API Endpoint: Get Daftar Jadwal Ter-booking (Hanya status APPROVED yang memblokir kalender)
 router.get('/mobil/:id/jadwal', async (req, res) => {
     try {
         const { id } = req.params;
@@ -111,7 +109,7 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
                    u.nama as nama_peminjam, u.nama_seksi
             FROM peminjaman p
             JOIN users u ON p.user_id = u.id
-            WHERE p.mobil_id = $1 AND p.status_peminjaman IN ('APPROVED', 'PENDING')
+            WHERE p.mobil_id = $1 AND p.status_peminjaman = 'APPROVED'
             ORDER BY p.tgl_mulai ASC
         `, [id]);
         res.json(result.rows);
@@ -121,16 +119,17 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman (Dengan Cek Overlap Tanggal)
+// Pegawai: Ajukan Peminjaman (Langsung AUTO-APPROVED)
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
 
     try {
+        // Cek Bentrok Jadwal dengan Peminjaman Aktif (APPROVED)
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 
-              AND status_peminjaman IN ('APPROVED', 'PENDING')
+              AND status_peminjaman = 'APPROVED'
               AND (tgl_mulai <= $3 AND tgl_selesai >= $2)
         `, [mobil_id, tgl_mulai, tgl_selesai]);
 
@@ -148,9 +147,10 @@ router.post('/pinjam', async (req, res) => {
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
+        // Langsung simpan dengan status APPROVED
         await db.query(
             'INSERT INTO peminjaman (user_id, mobil_id, tujuan_peminjaman, tgl_mulai, tgl_selesai, lama_pinjam_hari, status_peminjaman) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [userId, mobil_id, tujuan, tgl_mulai, tgl_selesai, diffDays, 'PENDING']
+            [userId, mobil_id, tujuan, tgl_mulai, tgl_selesai, diffDays, 'APPROVED']
         );
         res.redirect('/dashboard');
     } catch (err) {
@@ -172,7 +172,7 @@ router.post('/kembalikan', async (req, res) => {
     }
 });
 
-// Admin: Ubah Status Peminjaman
+// Admin: Ubah Status / Reject Peminjaman
 router.post('/admin/peminjaman/status', async (req, res) => {
     if (req.session.user.role !== 'admin') return res.status(403).send('Forbidden');
     const { peminjaman_id, mobil_id, status_peminjaman } = req.body;
@@ -180,10 +180,11 @@ router.post('/admin/peminjaman/status', async (req, res) => {
     try {
         await db.query('UPDATE peminjaman SET status_peminjaman = $1 WHERE id = $2', [status_peminjaman, peminjaman_id]);
         
-        if (status_peminjaman === 'APPROVED') {
-            await db.query('UPDATE mobil SET status = $1 WHERE id = $2', ['DIPINJAM', mobil_id]);
-        } else if (status_peminjaman === 'RETURNED' || status_peminjaman === 'REJECTED') {
+        // Jika dibatalkan (REJECTED) atau dikembalikan (RETURNED), status mobil kembali FREE
+        if (status_peminjaman === 'RETURNED' || status_peminjaman === 'REJECTED') {
             await db.query('UPDATE mobil SET status = $1 WHERE id = $2', ['FREE', mobil_id]);
+        } else if (status_peminjaman === 'APPROVED') {
+            await db.query('UPDATE mobil SET status = $1 WHERE id = $2', ['DIPINJAM', mobil_id]);
         }
 
         res.redirect('/dashboard');

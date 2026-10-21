@@ -27,7 +27,7 @@
 
 <div class="mb-6 sm:mb-8">
     <h1 class="text-xl sm:text-2xl font-bold text-brandBlue">Panel Kontrol Administrator</h1>
-    <p class="text-slate-500 text-xs sm:text-sm">Kelola armada mobil dinas, atur persetujuan, dan pantau aktivitas peminjaman.</p>
+    <p class="text-slate-500 text-xs sm:text-sm">Kelola armada mobil dinas, pantau aktivitas, dan batalkan peminjaman jika diperlukan.</p>
 </div>
 
 <!-- Form Tambah Mobil -->
@@ -146,12 +146,9 @@
         </form>
     </div>
 
-    <!-- Navigation Tabs Kategori -->
+    <!-- Navigation Tabs Kategori (Dua Tab: Sedang Dipinjam & Selesai/Ditolak) -->
     <div class="flex border-b border-slate-200 mb-4 gap-2">
-        <button onclick="switchTab('pending')" id="tab-pending" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-brandBlue text-brandBlue">
-            Menunggu Approval (<%= pendingList.length %>)
-        </button>
-        <button onclick="switchTab('approved')" id="tab-approved" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700">
+        <button onclick="switchTab('approved')" id="tab-approved" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-brandBlue text-brandBlue">
             Sedang Dipinjam (<%= approvedList.length %>)
         </button>
         <button onclick="switchTab('finished')" id="tab-finished" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700">
@@ -159,8 +156,8 @@
         </button>
     </div>
 
-    <!-- TAB 1: PENDING -->
-    <div id="content-pending" class="overflow-x-auto">
+    <!-- TAB 1: SEDANG DIPINJAM (APPROVED) -->
+    <div id="content-approved" class="overflow-x-auto">
         <table class="w-full text-left text-xs sm:text-sm text-slate-600">
             <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sm:text-xs">
                 <tr>
@@ -169,49 +166,7 @@
                     <th class="p-2 sm:p-3">Mobil</th>
                     <th class="p-2 sm:p-3">Tujuan</th>
                     <th class="p-2 sm:p-3">Durasi</th>
-                    <th class="p-2 sm:p-3">Ubah Status</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200">
-                <% if (pendingList.length === 0) { %>
-                    <tr><td colspan="6" class="p-4 text-center text-xs text-slate-400">Tidak ada peminjaman yang menunggu persetujuan.</td></tr>
-                <% } %>
-                <% pendingList.forEach(p => { %>
-                <tr>
-                    <td class="p-2 sm:p-3 font-medium text-slate-900 whitespace-nowrap"><%= p.nama_user %><br><span class="text-[10px] text-slate-400">@<%= p.username %></span></td>
-                    <td class="p-2 sm:p-3 font-semibold text-slate-700"><%= p.nama_seksi || '-' %></td>
-                    <td class="p-2 sm:p-3 font-semibold text-brandBlue whitespace-nowrap"><%= p.merk_tipe %><br><span class="text-[10px] font-mono text-slate-500"><%= p.plat_nomor %></span></td>
-                    <td class="p-2 sm:p-3"><%= p.tujuan_peminjaman %></td>
-                    <td class="p-2 sm:p-3 whitespace-nowrap"><p><%= p.lama_pinjam_hari %> Hari</p><p class="text-[10px] text-slate-400"><%= new Date(p.tgl_mulai).toLocaleDateString('id-ID') %> - <%= new Date(p.tgl_selesai).toLocaleDateString('id-ID') %></p></td>
-                    <td class="p-2 sm:p-3 whitespace-nowrap">
-                        <form action="/dashboard/admin/peminjaman/status" method="POST" class="flex items-center gap-1">
-                            <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
-                            <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
-                            <select name="status_peminjaman" class="text-xs p-1 border border-slate-300 rounded bg-white focus:outline-none">
-                                <option value="PENDING" selected>PENDING</option>
-                                <option value="APPROVED">APPROVED</option>
-                                <option value="REJECTED">REJECTED</option>
-                            </select>
-                            <button type="submit" class="px-2 py-1 bg-brandBlue text-white text-xs rounded font-bold">Simpan</button>
-                        </form>
-                    </td>
-                </tr>
-                <% }) %>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- TAB 2: APPROVED -->
-    <div id="content-approved" class="overflow-x-auto hidden">
-        <table class="w-full text-left text-xs sm:text-sm text-slate-600">
-            <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sm:text-xs">
-                <tr>
-                    <th class="p-2 sm:p-3">Peminjam</th>
-                    <th class="p-2 sm:p-3">Seksi / Unit</th>
-                    <th class="p-2 sm:p-3">Mobil</th>
-                    <th class="p-2 sm:p-3">Tujuan</th>
-                    <th class="p-2 sm:p-3">Durasi</th>
-                    <th class="p-2 sm:p-3">Ubah Status</th>
+                    <th class="p-2 sm:p-3">Opsi / Batal</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
@@ -226,14 +181,13 @@
                     <td class="p-2 sm:p-3"><%= p.tujuan_peminjaman %></td>
                     <td class="p-2 sm:p-3 whitespace-nowrap"><p><%= p.lama_pinjam_hari %> Hari</p><p class="text-[10px] text-slate-400"><%= new Date(p.tgl_mulai).toLocaleDateString('id-ID') %> - <%= new Date(p.tgl_selesai).toLocaleDateString('id-ID') %></p></td>
                     <td class="p-2 sm:p-3 whitespace-nowrap">
-                        <form action="/dashboard/admin/peminjaman/status" method="POST" class="flex items-center gap-1">
+                        <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Batalkan/Reject peminjaman ini? Jadwal booking akan dihapus dari kalender.');">
                             <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
                             <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
-                            <select name="status_peminjaman" class="text-xs p-1 border border-slate-300 rounded bg-white focus:outline-none">
-                                <option value="APPROVED" selected>APPROVED</option>
-                                <option value="RETURNED">RETURNED</option>
-                            </select>
-                            <button type="submit" class="px-2 py-1 bg-brandBlue text-white text-xs rounded font-bold">Simpan</button>
+                            <input type="hidden" name="status_peminjaman" value="REJECTED">
+                            <button type="submit" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold rounded transition">
+                                Batalkan (Reject)
+                            </button>
                         </form>
                     </td>
                 </tr>
@@ -242,7 +196,7 @@
         </table>
     </div>
 
-    <!-- TAB 3: FINISHED / REJECTED -->
+    <!-- TAB 2: FINISHED / REJECTED -->
     <div id="content-finished" class="overflow-x-auto hidden">
         <table class="w-full text-left text-xs sm:text-sm text-slate-600">
             <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sm:text-xs">
@@ -270,7 +224,7 @@
                         <% if(p.status_peminjaman === 'RETURNED') { %>
                             <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full bg-slate-100 text-slate-700">RETURNED</span>
                         <% } else { %>
-                            <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full bg-rose-100 text-rose-800">REJECTED</span>
+                            <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full bg-rose-100 text-rose-800">DIBATALKAN / REJECTED</span>
                         <% } %>
                     </td>
                 </tr>
@@ -370,7 +324,7 @@
 let fpAdmin;
 
 function switchTab(category) {
-    const categories = ['pending', 'approved', 'finished'];
+    const categories = ['approved', 'finished'];
     categories.forEach(cat => {
         const tabBtn = document.getElementById(`tab-${cat}`);
         const contentDiv = document.getElementById(`content-${cat}`);
@@ -455,13 +409,12 @@ function openAdminJadwalModal(mobilId, merk, plat) {
             data.forEach(item => {
                 const tglStart = new Date(item.tgl_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const tglEnd = new Date(item.tgl_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const badgeColor = item.status_peminjaman === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
 
                 html += `
                     <div class="p-3 border border-slate-200 bg-slate-50 rounded-lg text-xs space-y-1">
                         <div class="flex justify-between items-center gap-2">
                             <span class="font-bold text-slate-900 truncate">${item.nama_peminjam} (${item.nama_seksi || '-'})</span>
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeColor} shrink-0">${item.status_peminjaman}</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 shrink-0">APPROVED</span>
                         </div>
                         <p class="text-slate-600 break-words"><strong>Tujuan:</strong> ${item.tujuan_peminjaman}</p>
                         <p class="text-brandBlue font-semibold">📅 ${tglStart} s/d ${tglEnd}</p>

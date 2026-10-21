@@ -196,10 +196,8 @@
                         <td class="p-2 sm:p-3 whitespace-nowrap">
                             <% if(p.status_peminjaman === 'APPROVED') { %>
                                 <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded bg-emerald-100 text-emerald-700">APPROVED</span>
-                            <% } else if(p.status_peminjaman === 'PENDING') { %>
-                                <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded bg-amber-100 text-amber-700">MENUNGGU ADMIN</span>
                             <% } else if(p.status_peminjaman === 'REJECTED') { %>
-                                <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded bg-rose-100 text-rose-700">REJECTED</span>
+                                <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded bg-rose-100 text-rose-700">DIBATALKAN</span>
                             <% } else { %>
                                 <span class="px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded bg-slate-100 text-slate-600">RETURNED</span>
                             <% } %>
@@ -247,13 +245,12 @@ function openDetailModal(mobilId, merk, plat) {
             data.forEach(item => {
                 const tglStart = new Date(item.tgl_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const tglEnd = new Date(item.tgl_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const badgeColor = item.status_peminjaman === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
 
                 html += `
                     <div class="p-3 border border-slate-200 bg-slate-50 rounded-lg text-xs space-y-1">
                         <div class="flex justify-between items-center gap-2">
                             <span class="font-bold text-slate-900 truncate">${item.nama_peminjam} (${item.nama_seksi || '-'})</span>
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeColor} shrink-0">${item.status_peminjaman}</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 shrink-0">APPROVED</span>
                         </div>
                         <p class="text-slate-600 break-words"><strong>Tujuan:</strong> ${item.tujuan_peminjaman}</p>
                         <p class="text-brandBlue font-semibold">📅 ${tglStart} s/d ${tglEnd}</p>
