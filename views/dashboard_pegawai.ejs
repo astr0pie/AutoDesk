@@ -38,6 +38,7 @@
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1 my-3">
                     <p class="font-bold text-amber-800 flex items-center gap-1">📌 Informasi Peminjam Aktif:</p>
                     <p>• <strong>Peminjam:</strong> <%= m.nama_peminjam %> </p>
+                    <p>• <strong></strong> <%= m.seksi_peminjam || '-' %></p>
                     <p>• <strong>Tujuan:</strong> <%= m.tujuan_peminjaman %></p>
                     <p>• <strong>Tanggal:</strong> <%= new Date(m.tgl_mulai).toLocaleDateString('id-ID') %> s/d <%= new Date(m.tgl_selesai).toLocaleDateString('id-ID') %> (<%= m.lama_pinjam_hari %> hari)</p>
                 </div>

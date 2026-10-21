@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
                    p.status_peminjaman,
                    u.nama as nama_peminjam, 
                    u.username as username_peminjam
+                   u.nama_seksi as seksi_peminjam
             FROM mobil m
             LEFT JOIN peminjaman p ON m.id = p.mobil_id AND p.status_peminjaman IN ('APPROVED', 'PENDING')
             LEFT JOIN users u ON p.user_id = u.id

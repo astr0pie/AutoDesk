@@ -24,15 +24,23 @@
     <nav class="bg-white border-b-4 border-brandYellow shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 bg-brandBlue text-brandYellow rounded-lg flex items-center justify-center font-bold text-xl">AD</div>
-                    <span class="text-xl font-bold text-brandBlue">Peminjaman Kendaraan Dinas KPP Pratama Kotabumi</span>
-                </div>
+                <!-- Logo & Judul Aplikasi -->
+                <a href="/dashboard" class="flex items-center space-x-3 hover:opacity-90 transition">
+                    <!-- Ikon Mobil SVG Modern -->
+                    <div class="w-10 h-10 bg-brandBlue text-brandYellow rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 17a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4zM3 9l2-4h10l2 4m-14 0h16v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" />
+                        </svg>
+                    </div>
+                    <span class="text-lg sm:text-xl font-bold text-brandBlue">Peminjaman Kendaraan Dinas KPP Pratama Kotabumi</span>
+                </a>
+
+                <!-- Navigasi User Login -->
                 <% if (user) { %>
                 <div class="flex items-center space-x-4">
-                    <span class="text-sm text-slate-600">Halo, <strong class="text-brandBlue"><%= user.nama %></strong></span>
-                    <a href="/dashboard" class="text-sm font-semibold text-slate-700 hover:text-brandBlue">Dashboard</a>
-                    <a href="/profile" class="text-sm font-semibold text-slate-700 hover:text-brandBlue">Profil</a>
+                    <span class="text-sm text-slate-600"></strong></span>
+                    <a href="/dashboard" class="text-sm font-semibold text-slate-700 hover:text-brandBlue transition">Dashboard</a>
+                    <a href="/profile" class="text-sm font-semibold text-slate-700 hover:text-brandBlue transition">Profil</a>
                     <a href="/logout" class="px-3 py-1.5 text-sm bg-rose-50 text-rose-600 rounded-md font-medium hover:bg-rose-100 transition">Logout</a>
                 </div>
                 <% } %>
