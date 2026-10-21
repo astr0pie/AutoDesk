@@ -50,7 +50,7 @@ router.get('/register', (req, res) => {
     res.render('auth/register', { error: null });
 });
 
-// POST Register (Menangkap & Mengimpan nama_seksi)
+// POST Register
 router.post('/register', async (req, res) => {
     const { username, nama, nama_seksi, password, confirm_password, role, admin_code } = req.body;
     try {
@@ -95,7 +95,37 @@ router.get('/logout', (req, res) => {
 // GET Profile
 router.get('/profile', (req, res) => {
     if (!req.session.user) return res.redirect('/login');
-    res.render('profile');
+    res.render('profile', { error: null, success: null });
+});
+
+// POST Edit Profile (Username, Nama, dan Seksi)
+router.post('/profile/edit', async (req, res) => {
+    if (!req.session.user) return res.redirect('/login');
+    const { username, nama, nama_seksi } = req.body;
+    const userId = req.session.user.id;
+
+    try {
+        // Cek jika username diganti, apakah sudah ada user lain yang memakai
+        const checkUser = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, userId]);
+        if (checkUser.rows.length > 0) {
+            return res.render('profile', { error: 'Username sudah digunakan oleh akun lain!', success: null });
+        }
+
+        await db.query(
+            'UPDATE users SET username = $1, nama = $2, nama_seksi = $3 WHERE id = $4',
+            [username, nama, nama_seksi, userId]
+        );
+
+        // Update Session User
+        req.session.user.username = username;
+        req.session.user.nama = nama;
+        req.session.user.nama_seksi = nama_seksi;
+
+        res.render('profile', { error: null, success: 'Profil berhasil diperbarui!' });
+    } catch (err) {
+        console.error(err);
+        res.render('profile', { error: 'Gagal memperbarui profil: ' + err.message, success: null });
+    }
 });
 
 module.exports = router;

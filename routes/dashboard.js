@@ -13,6 +13,8 @@ router.use(authMiddleware);
 // Main Dashboard
 router.get('/', async (req, res) => {
     try {
+        const { show_all, bulan, tahun } = req.query;
+
         // Query data mobil + peminjam aktif hari ini
         const mobilRes = await db.query(`
             SELECT m.id, m.plat_nomor, m.merk_tipe, m.kategori, m.kapasitas, m.tahun, m.status, m.kondapat_catatan,
@@ -35,25 +37,64 @@ router.get('/', async (req, res) => {
         const mobilList = mobilRes.rows;
         
         if (req.session.user.role === 'admin') {
+            let whereClause = "WHERE 1=1";
+            let queryParams = [];
+
+            // Filtering bawaan: 1 bulan terakhir jika show_all tidak aktif & tidak ada filter bulan spesifik
+            if (show_all !== 'true' && !bulan) {
+                whereClause += " AND p.tgl_mulai >= NOW() - INTERVAL '1 month'";
+            }
+
+            // Filtering spesifik Bulan & Tahun
+            if (bulan && tahun) {
+                queryParams.push(parseInt(bulan));
+                queryParams.push(parseInt(tahun));
+                whereClause += ` AND EXTRACT(MONTH FROM p.tgl_mulai) = $${queryParams.length - 1} AND EXTRACT(YEAR FROM p.tgl_mulai) = $${queryParams.length}`;
+            }
+
             const peminjamanRes = await db.query(`
                 SELECT p.*, u.nama as nama_user, u.username, u.nama_seksi, m.merk_tipe, m.plat_nomor 
                 FROM peminjaman p
                 JOIN users u ON p.user_id = u.id
                 JOIN mobil m ON p.mobil_id = m.id
+                ${whereClause}
                 ORDER BY p.id DESC
-            `);
-            const peminjamanList = peminjamanRes.rows;
-            res.render('dashboard_admin', { mobilList, peminjamanList });
+            `, queryParams);
+
+            const allLogs = peminjamanRes.rows;
+
+            // Pemisahan log berdasarkan kategori
+            const pendingList = allLogs.filter(p => p.status_peminjaman === 'PENDING');
+            const approvedList = allLogs.filter(p => p.status_peminjaman === 'APPROVED');
+            const finishedList = allLogs.filter(p => p.status_peminjaman === 'RETURNED' || p.status_peminjaman === 'REJECTED');
+
+            res.render('dashboard_admin', { 
+                mobilList, 
+                pendingList,
+                approvedList,
+                finishedList,
+                showAll: show_all === 'true',
+                selectedBulan: bulan || '',
+                selectedTahun: tahun || new Date().getFullYear()
+            });
         } else {
+            let userWhereClause = "WHERE p.user_id = $1";
+            let userQueryParams = [req.session.user.id];
+
+            if (show_all !== 'true') {
+                userWhereClause += " AND p.tgl_mulai >= NOW() - INTERVAL '1 month'";
+            }
+
             const myPinjamRes = await db.query(`
                 SELECT p.*, m.merk_tipe, m.plat_nomor 
                 FROM peminjaman p
                 JOIN mobil m ON p.mobil_id = m.id
-                WHERE p.user_id = $1
+                ${userWhereClause}
                 ORDER BY p.id DESC
-            `, [req.session.user.id]);
+            `, userQueryParams);
+
             const myPinjam = myPinjamRes.rows;
-            res.render('dashboard_pegawai', { mobilList, pinjamList: myPinjam });
+            res.render('dashboard_pegawai', { mobilList, pinjamList: myPinjam, showAll: show_all === 'true' });
         }
     } catch (err) {
         console.error('DETAIL ERROR DASHBOARD:', err);
@@ -86,7 +127,6 @@ router.post('/pinjam', async (req, res) => {
     const userId = req.session.user.id;
 
     try {
-        // Cek Bentrok Jadwal
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 
