@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+<div class="max-w-md mx-auto my-12 bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+    <h2 class="text-2xl font-bold text-brandBlue mb-2">Login AutoDesk</h2>
+    <p class="text-xs text-slate-500 mb-6">Masukkan username dan password akun kamu.</p>
+    
+    <% if(error) { %>
+        <div class="p-3 mb-4 text-xs text-rose-700 bg-rose-100 rounded-lg"><%= error %></div>
+    <% } %>
+
+    <form action="/login" method="POST" class="space-y-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+            <input type="text" name="username" required placeholder="Please input your username." class="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+            <div class="relative">
+                <input type="password" id="loginPassword" name="password" required class="w-full p-2.5 pr-10 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
+                <button type="button" onclick="togglePassword('loginPassword', 'eyeIconLogin')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
+                    <svg id="eyeIconLogin" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-brandBlue hover:bg-blue-800 text-white font-bold text-sm rounded-lg transition">Masuk</button>
+    </form>
+    <p class="text-xs text-center text-slate-600 mt-4">Belum punya akun? <a href="/register" class="text-brandBlue font-bold underline">Daftar Akun Baru</a></p>
+</div>
+
+<script>
+function togglePassword(inputId, iconId) {
+    const pwdInput = document.getElementById(inputId);
+    const eyeIcon = document.getElementById(iconId);
+    if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        eyeIcon.classList.add('text-brandBlue');
+    } else {
+        pwdInput.type = 'password';
+        eyeIcon.classList.remove('text-brandBlue');
+    }
+}
+</script>
+<%- include('../partials/footer') %>

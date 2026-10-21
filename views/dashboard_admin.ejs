@@ -1,0 +1,223 @@
+<%- include('partials/header') %>
+
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-brandBlue">Panel Kontrol Administrator</h1>
+    <p class="text-slate-500 text-sm">Kelola armada mobil dinas, atur persetujuan, dan pantau aktivitas peminjaman.</p>
+</div>
+
+<!-- Form Tambah Mobil -->
+<div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-8">
+    <h2 class="text-lg font-bold text-slate-800 mb-4">+ Tambah Unit Mobil Dinas Baru</h2>
+    <form action="/dashboard/mobil/tambah" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <input type="text" name="plat_nomor" placeholder="Plat Nomor (Contoh: B 1024 RFS)" required class="p-2 border text-sm rounded focus:outline-none focus:border-brandBlue">
+        <input type="text" name="merk_tipe" placeholder="Merek & Tipe (Contoh: Toyota Innova)" required class="p-2 border text-sm rounded focus:outline-none focus:border-brandBlue">
+        <input type="text" name="kategori" placeholder="Kategori (MPV/SUV/Sedan)" required class="p-2 border text-sm rounded focus:outline-none focus:border-brandBlue">
+        <input type="number" name="kapasitas" placeholder="Kapasitas Kursi" required class="p-2 border text-sm rounded focus:outline-none focus:border-brandBlue">
+        <input type="number" name="tahun" placeholder="Tahun Pembuatan" required class="p-2 border text-sm rounded focus:outline-none focus:border-brandBlue">
+        <input type="text" name="kondapat_catatan" placeholder="Catatan Kondisi Awal" class="p-2 border text-sm rounded focus:outline-none focus:border-brandBlue">
+        <button type="submit" class="md:col-span-3 py-2 bg-brandBlue text-white font-bold text-sm rounded hover:bg-blue-800 transition">Simpan Mobil</button>
+    </form>
+</div>
+
+<!-- Daftar Armada Mobil & Opsi Edit/Hapus -->
+<div class="mb-10">
+    <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-3 h-3 bg-brandYellow rounded-full inline-block"></span> Kelola Daftar Mobil
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <% mobilList.forEach(m => { %>
+        <div class="bg-brandCard border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-900"><%= m.merk_tipe %></h3>
+                        <p class="text-xs font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded inline-block mt-1"><%= m.plat_nomor %></p>
+                    </div>
+                    <% if(m.status === 'FREE') { %>
+                        <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">FREE</span>
+                    <% } else if(m.status === 'DIPINJAM') { %>
+                        <span class="px-2.5 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">DIPINJAM</span>
+                    <% } else { %>
+                        <span class="px-2.5 py-1 bg-rose-100 text-rose-700 text-xs font-bold rounded-full">MAINTENANCE</span>
+                    <% } %>
+                </div>
+                
+                <div class="text-xs text-slate-600 space-y-1 mb-4">
+                    <p>Kategori: <strong><%= m.kategori %></strong> (<%= m.kapasitas %> Seat)</p>
+                    <p>Tahun: <strong><%= m.tahun %></strong></p>
+                    <p>Catatan: <span class="italic text-slate-500"><%= m.kondapat_catatan || '-' %></span></p>
+                </div>
+            </div>
+
+            <!-- Tombol Opsi Edit & Hapus Mobil -->
+            <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                <button type="button" 
+                    data-id="<%= m.id %>"
+                    data-plat="<%= m.plat_nomor %>"
+                    data-merk="<%= m.merk_tipe %>"
+                    data-kategori="<%= m.kategori %>"
+                    data-kapasitas="<%= m.kapasitas %>"
+                    data-tahun="<%= m.tahun %>"
+                    data-status="<%= m.status %>"
+                    data-catatan="<%= m.kondapat_catatan || '' %>"
+                    onclick="openEditModal(this)" 
+                    class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-brandBlue font-bold text-xs rounded-lg transition border border-blue-200 flex items-center gap-1">
+                    ✏️ Edit
+                </button>
+                <form action="/dashboard/mobil/hapus" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?');">
+                    <input type="hidden" name="mobil_id" value="<%= m.id %>">
+                    <button type="submit" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-lg transition border border-rose-200 flex items-center gap-1">
+                        🗑️ Hapus
+                    </button>
+                </form>
+            </div>
+        </div>
+        <% }) %>
+    </div>
+</div>
+
+<!-- Modal Pop-Up Edit Mobil -->
+<div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-brandBlue">Edit Data Mobil</h3>
+            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+        </div>
+        <form action="/dashboard/mobil/edit" method="POST" class="space-y-3">
+            <input type="hidden" id="edit_mobil_id" name="mobil_id">
+            
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Plat Nomor</label>
+                <input type="text" id="edit_plat_nomor" name="plat_nomor" required class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Merek & Tipe</label>
+                <input type="text" id="edit_merk_tipe" name="merk_tipe" required class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+                    <input type="text" id="edit_kategori" name="kategori" required class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kapasitas (Seat)</label>
+                    <input type="number" id="edit_kapasitas" name="kapasitas" required class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Tahun Pembuatan</label>
+                    <input type="number" id="edit_tahun" name="tahun" required class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Status Mobil</label>
+                    <select id="edit_status" name="status" class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue bg-white">
+                        <option value="FREE">FREE</option>
+                        <option value="DIPINJAM">DIPINJAM</option>
+                        <option value="MAINTENANCE">MAINTENANCE</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Kondisi</label>
+                <input type="text" id="edit_kondapat_catatan" name="kondapat_catatan" class="w-full p-2 text-xs border border-slate-300 rounded focus:outline-none focus:border-brandBlue">
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition">Batal</button>
+                <button type="submit" class="px-4 py-2 bg-brandBlue hover:bg-blue-800 text-white font-bold text-xs rounded-lg transition">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Laporan Peminjaman Seluruh Pegawai & Pengaturan Status -->
+<div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+    <h2 class="text-lg font-bold text-slate-800 mb-4">Kelola & Atur Status Peminjaman Pegawai</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-100 text-slate-700 uppercase text-xs">
+                <tr>
+                    <th class="p-3">Peminjam</th>
+                    <th class="p-3">Seksi / Unit</th>
+                    <th class="p-3">Mobil</th>
+                    <th class="p-3">Tujuan</th>
+                    <th class="p-3">Durasi Peminjaman</th>
+                    <th class="p-3">Status Saat Ini</th>
+                    <th class="p-3">Ubah Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                <% if (peminjamanList.length === 0) { %>
+                    <tr><td colspan="7" class="p-4 text-center text-xs text-slate-400">Belum ada peminjaman yang diajukan.</td></tr>
+                <% } %>
+                <% peminjamanList.forEach(p => { %>
+                <tr>
+                    <td class="p-3 font-medium text-slate-900">
+                        <%= p.nama_user %><br>
+                        <span class="text-xs text-slate-400">@<%= p.username %></span>
+                    </td>
+                    <td class="p-3 text-xs font-semibold text-slate-700">
+                        <%= p.nama_seksi || '-' %>
+                    </td>
+                    <td class="p-3 font-semibold text-brandBlue"><%= p.merk_tipe %> (<%= p.plat_nomor %>)</td>
+                    <td class="p-3"><%= p.tujuan_peminjaman %></td>
+                    <td class="p-3">
+                        <p><%= p.lama_pinjam_hari %> Hari</p>
+                        <p class="text-[11px] text-slate-400"><%= new Date(p.tgl_mulai).toLocaleDateString('id-ID') %> - <%= new Date(p.tgl_selesai).toLocaleDateString('id-ID') %></p>
+                    </td>
+                    <td class="p-3">
+                        <% if(p.status_peminjaman === 'APPROVED') { %>
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800">APPROVED</span>
+                        <% } else if(p.status_peminjaman === 'PENDING') { %>
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800">PENDING</span>
+                        <% } else if(p.status_peminjaman === 'REJECTED') { %>
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-rose-100 text-rose-800">REJECTED</span>
+                        <% } else { %>
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-700">RETURNED</span>
+                        <% } %>
+                    </td>
+                    <td class="p-3">
+                        <form action="/dashboard/admin/peminjaman/status" method="POST" class="flex items-center gap-1">
+                            <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
+                            <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
+                            <select name="status_peminjaman" class="text-xs p-1.5 border border-slate-300 rounded focus:outline-none bg-white">
+                                <option value="PENDING" <%= p.status_peminjaman === 'PENDING' ? 'selected' : '' %>>PENDING</option>
+                                <option value="APPROVED" <%= p.status_peminjaman === 'APPROVED' ? 'selected' : '' %>>APPROVED</option>
+                                <option value="REJECTED" <%= p.status_peminjaman === 'REJECTED' ? 'selected' : '' %>>REJECTED</option>
+                                <option value="RETURNED" <%= p.status_peminjaman === 'RETURNED' ? 'selected' : '' %>>RETURNED</option>
+                            </select>
+                            <button type="submit" class="px-2 py-1 bg-brandBlue text-white text-xs rounded hover:bg-blue-800 font-bold transition">Simpan</button>
+                        </form>
+                    </td>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function openEditModal(btn) {
+    document.getElementById('edit_mobil_id').value = btn.getAttribute('data-id');
+    document.getElementById('edit_plat_nomor').value = btn.getAttribute('data-plat');
+    document.getElementById('edit_merk_tipe').value = btn.getAttribute('data-merk');
+    document.getElementById('edit_kategori').value = btn.getAttribute('data-kategori');
+    document.getElementById('edit_kapasitas').value = btn.getAttribute('data-kapasitas');
+    document.getElementById('edit_tahun').value = btn.getAttribute('data-tahun');
+    document.getElementById('edit_status').value = btn.getAttribute('data-status');
+    document.getElementById('edit_kondapat_catatan').value = btn.getAttribute('data-catatan');
+
+    const modal = document.getElementById('editModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+</script>
+
+<%- include('partials/footer') %>

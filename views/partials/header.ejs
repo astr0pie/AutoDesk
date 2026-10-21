@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoDesk - Peminjaman Mobil Dinas Kantor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandBlue: '#1E40AF',
+                        brandYellow: '#FACC15',
+                        brandBg: '#FFFFFF',
+                        brandCard: '#F8FAFC'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brandBg text-slate-800 font-sans min-h-screen flex flex-col">
+    <nav class="bg-white border-b-4 border-brandYellow shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-brandBlue text-brandYellow rounded-lg flex items-center justify-center font-bold text-xl">AD</div>
+                    <span class="text-xl font-bold text-brandBlue">AutoDesk</span>
+                </div>
+                <% if (user) { %>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-slate-600">Halo, <strong class="text-brandBlue"><%= user.nama %></strong></span>
+                    <a href="/dashboard" class="text-sm font-semibold text-slate-700 hover:text-brandBlue">Dashboard</a>
+                    <a href="/profile" class="text-sm font-semibold text-slate-700 hover:text-brandBlue">Profil</a>
+                    <a href="/logout" class="px-3 py-1.5 text-sm bg-rose-50 text-rose-600 rounded-md font-medium hover:bg-rose-100 transition">Logout</a>
+                </div>
+                <% } %>
+            </div>
+        </div>
+    </nav>
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
