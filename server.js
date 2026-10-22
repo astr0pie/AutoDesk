@@ -10,7 +10,7 @@ const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret_key',
@@ -21,13 +21,23 @@ app.use(session({
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'public')));
 
+// Pass user session ke semua template EJS
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     next();
 });
 
+// Penanganan Rute Utama '/' (Mencegah Error "Cannot GET /")
+app.get('/', (req, res) => {
+    if (req.session && req.session.user) {
+        res.redirect('/dashboard');
+    } else {
+        res.redirect('/login');
+    }
+});
+
+// Mount Routes
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
 
