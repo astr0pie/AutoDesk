@@ -286,10 +286,6 @@
                 <!-- Navigasi User Login -->
                 <% if (hasUser) { %>
                 <div class="flex items-center gap-1 sm:gap-2 shrink-0">
-                    <span class="hidden md:inline-flex items-center gap-2 mr-2" title="<%= user.nama || user.username || '' %>">
-                        <span class="avatar" aria-hidden="true"><%= String(user.nama || user.username || '?').trim().charAt(0).toUpperCase() %></span>
-                        <span class="text-sm font-semibold text-slate-700 max-w-[10rem] truncate"><%= user.nama || user.username || '' %></span>
-                    </span>
                     <a href="/dashboard" data-nav class="nav-link">Dashboard</a>
                     <a href="/profile" data-nav class="nav-link">Profil</a>
                     <a href="/logout" class="nav-logout" aria-label="Logout">
