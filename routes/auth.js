@@ -42,32 +42,54 @@ router.post('/login', async (req, res) => {
 // GET Register Page
 router.get('/register', (req, res) => {
     if (req.session.user) return res.redirect('/dashboard');
-    res.render('auth/register', { error: null });
+    res.render('auth/register', { 
+        error: null, 
+        formData: {}, 
+        isUsernameError: false 
+    });
 });
 
 // POST Register
 router.post('/register', async (req, res) => {
     const { username, nama, nama_seksi, password, confirm_password, role, admin_code } = req.body;
+    const formData = { username, nama, nama_seksi, role, admin_code };
+
     try {
         if (password !== confirm_password) {
-            return res.render('auth/register', { error: 'Konfirmasi password tidak cocok!' });
+            return res.render('auth/register', { 
+                error: 'Konfirmasi password tidak cocok!', 
+                formData, 
+                isUsernameError: false 
+            });
         }
 
-        // Validasi format Username (Min 4 Karakter & Huruf/Angka saja)
+        // Validasi Format Username (Min 4 Karakter & Huruf/Angka saja)
         const usernameRegex = /^[a-zA-Z0-9]{4,}$/;
         if (!usernameRegex.test(username)) {
-            return res.render('auth/register', { error: 'Username minimal 4 karakter dan hanya boleh terdiri dari huruf dan angka!' });
+            return res.render('auth/register', { 
+                error: 'Username minimal 4 karakter dan hanya boleh terdiri dari huruf dan angka!', 
+                formData, 
+                isUsernameError: true 
+            });
         }
 
         const existingRes = await db.query('SELECT * FROM users WHERE username = $1', [username]);
         if (existingRes.rows.length > 0) {
-            return res.render('auth/register', { error: 'Username sudah digunakan!' });
+            return res.render('auth/register', { 
+                error: 'Username sudah digunakan!', 
+                formData, 
+                isUsernameError: true 
+            });
         }
 
         let userRole = 'pegawai';
         if (role === 'admin') {
-            if (admin_code !== 'ADMINKPP') { // Sesuaikan kode admin kamu jika ada
-                return res.render('auth/register', { error: 'Kode Admin tidak valid!' });
+            if (admin_code !== 'ADMINKPP') {
+                return res.render('auth/register', { 
+                    error: 'Kode Admin tidak valid!', 
+                    formData, 
+                    isUsernameError: false 
+                });
             }
             userRole = 'admin';
         }
@@ -114,7 +136,7 @@ router.post('/profile/update', async (req, res) => {
         const userRes = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
         const currentUser = userRes.rows[0];
 
-        // 1. Validasi Username: Minimal 4 karakter & Alphanumeric
+        // Validasi Username: Minimal 4 karakter & Alphanumeric
         const usernameRegex = /^[a-zA-Z0-9]{4,}$/;
         if (!usernameRegex.test(username)) {
             return res.render('profile', {
@@ -124,7 +146,7 @@ router.post('/profile/update', async (req, res) => {
             });
         }
 
-        // 2. Jika Username Diubah, Wajib Konfirmasi Password
+        // Jika Username Diubah, Wajib Konfirmasi Password
         const isUsernameChanged = username.trim() !== currentUser.username;
         if (isUsernameChanged) {
             if (!password_confirm) {
@@ -144,7 +166,6 @@ router.post('/profile/update', async (req, res) => {
                 });
             }
 
-            // Cek apakah username baru sudah terpakai
             const checkUsername = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, userId]);
             if (checkUsername.rows.length > 0) {
                 return res.render('profile', {
@@ -155,13 +176,11 @@ router.post('/profile/update', async (req, res) => {
             }
         }
 
-        // Update database
         await db.query(
             'UPDATE users SET nama = $1, username = $2, nama_seksi = $3 WHERE id = $4',
             [nama, username, nama_seksi, userId]
         );
 
-        // Update Session
         req.session.user.nama = nama;
         req.session.user.username = username;
         req.session.user.nama_seksi = nama_seksi;
