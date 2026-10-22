@@ -119,12 +119,32 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman (Langsung AUTO-APPROVED)
+// Pegawai: Ajukan Peminjaman (AUTO-APPROVED & Maksimal 7 Hari dari Hari Ini)
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
 
     try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const start = new Date(tgl_mulai);
+        const end = new Date(tgl_selesai);
+
+        // Batas maksimal H+7 dari hari pemesanan
+        const maxAllowedDate = new Date(today);
+        maxAllowedDate.setDate(maxAllowedDate.getDate() + 7);
+        maxAllowedDate.setHours(23, 59, 59, 999);
+
+        if (start > maxAllowedDate || end > maxAllowedDate) {
+            return res.status(400).send(`
+                <script>
+                    alert('Gagal! Tanggal pemakaian mobil maksimal 7 hari dari hari booking/pemesanan.');
+                    window.location.href = '/dashboard';
+                </script>
+            `);
+        }
+
         // Cek Bentrok Jadwal dengan Peminjaman Aktif (APPROVED)
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
@@ -142,8 +162,6 @@ router.post('/pinjam', async (req, res) => {
             `);
         }
 
-        const start = new Date(tgl_mulai);
-        const end = new Date(tgl_selesai);
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
@@ -180,7 +198,6 @@ router.post('/admin/peminjaman/status', async (req, res) => {
     try {
         await db.query('UPDATE peminjaman SET status_peminjaman = $1 WHERE id = $2', [status_peminjaman, peminjaman_id]);
         
-        // Jika dibatalkan (REJECTED) atau dikembalikan (RETURNED), status mobil kembali FREE
         if (status_peminjaman === 'RETURNED' || status_peminjaman === 'REJECTED') {
             await db.query('UPDATE mobil SET status = $1 WHERE id = $2', ['FREE', mobil_id]);
         } else if (status_peminjaman === 'APPROVED') {

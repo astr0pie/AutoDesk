@@ -132,8 +132,8 @@
             </div>
 
             <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
-                <p class="font-bold flex items-center gap-1 mb-1">💡 Catatan Kalender Pemilih Tanggal:</p>
-                <p>Tanggal berlatar <strong>kuning</strong> menunjukkan bahwa mobil sudah ter-booking di tanggal tersebut. Silakan pilih rentang tanggal lain yang masih kosong.</p>
+                <p class="font-bold flex items-center gap-1 mb-1">💡 Catatan Pemilih Tanggal:</p>
+                <p>Tanggal berlatar <strong>kuning</strong> menunjukkan mobil sudah ter-booking. Pemilihan tanggal maksimal <strong>7 hari</strong> dari hari ini.</p>
             </div>
 
             <div>
@@ -297,10 +297,15 @@ function openBookingModal(mobilId, merk, plat) {
             if (fpMulai) fpMulai.destroy();
             if (fpSelesai) fpSelesai.destroy();
 
+            // Hitung tanggal batas maksimal (H+7 dari hari ini)
+            const maxDateLimit = new Date();
+            maxDateLimit.setDate(maxDateLimit.getDate() + 7);
+
             const flatpickrConfig = {
                 enableTime: true,
                 dateFormat: "Y-m-d H:i",
                 minDate: "today",
+                maxDate: maxDateLimit,
                 disable: disableRanges,
                 onDayCreate: function(dObj, dStr, fp, dayElem) {
                     const dayDate = dayElem.dateObj;
