@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Peminjaman Kendaraan Dinas KPP Pratama Kotabumi</title>
+
+    <!-- Font: Plus Jakarta Sans (UI) & Barlow Condensed (plat nomor). Ada fallback font sistem jika gagal dimuat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -13,33 +19,295 @@
                         brandBlue: '#1E40AF',
                         brandYellow: '#FACC15',
                         brandBg: '#FFFFFF',
-                        brandCard: '#F8FAFC'
+                        brandCard: '#F8FAFC',
+                        brandNavy: '#0E2A5C',
+                        brandPaper: '#F3F5F9'
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif']
                     }
                 }
             }
         }
     </script>
+
+    <style>
+        /* ============ Design tokens ============ */
+        :root {
+            --navy: #0E2A5C;
+            --blue: #1E40AF;
+            --blue-soft: #EAF0FF;
+            --gold: #FACC15;
+            --paper: #F3F5F9;
+            --line: #DCE2EC;
+            --ink: #0F172A;
+            --muted: #5B6678;
+            --faint: #94A0B4;
+            --plate: #B3141B;
+        }
+
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+        .skip-link {
+            position: absolute; left: -9999px; top: 0; z-index: 100;
+            background: var(--navy); color: #fff; padding: .5rem .9rem; border-radius: 0 0 10px 0; font-size: .8125rem; font-weight: 700;
+        }
+        .skip-link:focus { left: 0; }
+
+        /* ============ Navbar ============ */
+        .app-header {
+            position: sticky; top: 0; z-index: 40;
+            background: rgba(255, 255, 255, .96);
+            -webkit-backdrop-filter: saturate(1.4) blur(8px);
+            backdrop-filter: saturate(1.4) blur(8px);
+            border-bottom: 3px solid var(--gold);
+        }
+        .brand { display: flex; align-items: center; gap: .65rem; min-width: 0; text-decoration: none; }
+        .brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+        .brand-kicker { font-size: .6875rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .brand-title { font-size: .9375rem; font-weight: 800; color: var(--navy); letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        @media (min-width: 640px) { .brand-title { font-size: 1.0625rem; } }
+
+        .nav-link {
+            font-size: .8125rem; font-weight: 600; color: #3B475C; text-decoration: none;
+            padding: .45rem .75rem; border-radius: 9px; transition: background .15s, color .15s;
+        }
+        .nav-link:hover { background: #EEF2FA; color: var(--blue); }
+        .nav-link[aria-current="page"] { background: var(--blue-soft); color: var(--blue); font-weight: 700; }
+        .nav-logout {
+            display: inline-flex; align-items: center; gap: .4rem;
+            font-size: .8125rem; font-weight: 700; color: #BE123C; background: #FEF1F2; text-decoration: none;
+            padding: .45rem .7rem; border-radius: 9px; transition: background .15s;
+        }
+        .nav-logout:hover { background: #FFE0E5; }
+        .avatar {
+            width: 2rem; height: 2rem; border-radius: 999px; background: var(--navy); color: #fff;
+            font-weight: 800; font-size: .8125rem; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+
+        /* ============ Tipografi halaman ============ */
+        .page-title { font-size: 1.5rem; line-height: 1.2; font-weight: 800; color: var(--navy); letter-spacing: -.02em; }
+        @media (min-width: 640px) { .page-title { font-size: 1.75rem; } }
+        .page-sub { font-size: .875rem; color: var(--muted); margin-top: .35rem; max-width: 42rem; line-height: 1.55; }
+        .section-title { font-size: 1.0625rem; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
+        .count-chip {
+            display: inline-block; font-size: .75rem; font-weight: 700; color: var(--muted);
+            background: #E6EAF2; border-radius: 999px; padding: .1rem .55rem; margin-left: .4rem; vertical-align: middle;
+        }
+
+        /* ============ Kartu & panel ============ */
+        .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+
+        /* ============ Tombol ============ */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+            font-family: inherit; font-weight: 700; font-size: .8125rem; line-height: 1.2; text-decoration: none; cursor: pointer;
+            padding: .62rem 1rem; border-radius: 10px; border: 1px solid transparent;
+            transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+        }
+        .btn svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+        .btn-block { width: 100%; }
+        .btn-sm { padding: .4rem .75rem; font-size: .75rem; border-radius: 9px; }
+        .btn-primary { background: var(--blue); color: #fff; }
+        .btn-primary:hover { background: var(--navy); }
+        .btn-accent { background: var(--gold); color: #1B2430; }
+        .btn-accent:hover { background: #EAB800; }
+        .btn-ghost { background: #fff; color: #263247; border-color: #CBD3E1; }
+        .btn-ghost:hover { background: #F1F4F9; border-color: #B5C0D3; }
+        .btn-soft { background: var(--blue-soft); color: var(--blue); border-color: #CBD8FB; }
+        .btn-soft:hover { background: #DCE7FF; }
+        .btn-amber { background: #FFF6D6; color: #7A4F00; border-color: #F5DE8A; }
+        .btn-amber:hover { background: #FFEFB8; }
+        .btn-danger { background: #FEF1F2; color: #BE123C; border-color: #FBD0D6; }
+        .btn-danger:hover { background: #FFE0E5; }
+        .icon-btn {
+            width: 2rem; height: 2rem; border-radius: 8px; color: var(--muted); cursor: pointer; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center; transition: background .15s, color .15s;
+        }
+        .icon-btn:hover { background: #EEF1F6; color: var(--ink); }
+        .icon-btn svg { width: 1.15rem; height: 1.15rem; }
+
+        /* ============ Form ============ */
+        .label { display: block; font-size: .75rem; font-weight: 700; color: #334155; margin-bottom: .35rem; }
+        .field {
+            width: 100%; font-family: inherit; font-size: .875rem; color: var(--ink);
+            padding: .65rem .8rem; background: #fff; border: 1px solid #C9D2E1; border-radius: 10px;
+            transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+        .field::placeholder { color: var(--faint); }
+        .field:hover { border-color: #A9B5CB; }
+        .field:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(30, 64, 175, .16); }
+        select.field {
+            -webkit-appearance: none; appearance: none; padding-right: 2.2rem; cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%235B6678'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right .6rem center; background-size: 1.15rem;
+        }
+        .field.field-sm { padding: .42rem .65rem; font-size: .75rem; border-radius: 9px; }
+        .field.field-inline { width: 11rem; }
+        .field.field-year { width: 5.5rem; }
+        .field.field-mono { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+        .field.field-amber { border-color: #F0D27A; background: #FFFBEB; }
+        .field.field-amber:focus { border-color: #C58B00; box-shadow: 0 0 0 3px rgba(250, 204, 21, .3); }
+        .field.field-danger { border-color: #F4B5BE; background: #FFF8F9; }
+        .field.field-danger:focus { border-color: #E11D48; box-shadow: 0 0 0 3px rgba(225, 29, 72, .15); }
+        .field.is-invalid { border-color: #E11D48; background: #FFF5F6; color: #9F1239; }
+        .hint { font-size: .6875rem; color: var(--muted); margin-top: .35rem; line-height: 1.45; }
+        .hint.is-invalid-note { color: #E11D48; font-weight: 700; }
+        .pw-toggle {
+            position: absolute; right: .35rem; top: 50%; transform: translateY(-50%);
+            width: 2.1rem; height: 2.1rem; border-radius: 8px; color: var(--faint); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; transition: color .15s, background .15s;
+        }
+        .pw-toggle:hover { color: var(--ink); background: #F1F4F9; }
+        .pw-toggle.is-on { color: var(--blue); }
+        .pw-toggle svg { width: 1.2rem; height: 1.2rem; }
+
+        /* ============ Alert & notice ============ */
+        .alert { padding: .7rem .9rem; border-radius: 10px; font-size: .8125rem; line-height: 1.5; border: 1px solid; }
+        .alert-error { background: #FFF1F3; border-color: #FBD0D6; color: #9F1239; }
+        .alert-success { background: #ECFDF3; border-color: #B7EBCB; color: #0F6B40; }
+        .notice { padding: .75rem .9rem; border-radius: 12px; font-size: .75rem; line-height: 1.55; background: #FFF9E0; border: 1px solid #F5E19A; color: #6B4A00; }
+
+        /* ============ Status & plat nomor ============ */
+        .badge {
+            display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap;
+            font-size: .6875rem; font-weight: 700; padding: .25rem .6rem; border-radius: 999px;
+        }
+        .badge::before { content: ""; width: .4rem; height: .4rem; border-radius: 999px; background: currentColor; }
+        .badge-free { background: #E5F5EC; color: #0F7A4A; }
+        .badge-busy { background: #FFF3CC; color: #8A5A00; }
+        .badge-maint { background: #FDE8EA; color: #B3141B; }
+        .badge-done { background: #EDF0F5; color: #4A5568; }
+
+        /* Plat merah: penanda kendaraan dinas pemerintah */
+        .plate {
+            display: inline-block; font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 600;
+            font-size: 1rem; line-height: 1.25; letter-spacing: .09em; text-transform: uppercase; color: #fff; background: var(--plate);
+            padding: .12rem .65rem; border-radius: 6px; border: 1px solid #7C0E13; white-space: nowrap;
+            box-shadow: inset 0 0 0 2px var(--plate), inset 0 0 0 3px rgba(255, 255, 255, .85);
+        }
+        .plate-sm { font-size: .8125rem; padding: 0 .5rem; border-radius: 4px; }
+
+        /* ============ Kartu mobil ============ */
+        .car-card {
+            background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.15rem;
+            display: flex; flex-direction: column; gap: .9rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+        }
+        .car-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+        .car-name { font-size: 1.1875rem; font-weight: 800; color: var(--navy); letter-spacing: -.015em; line-height: 1.25; overflow-wrap: anywhere; }
+        .spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr)); gap: .5rem 1rem; margin: 0; }
+        .spec dt { font-size: .6875rem; font-weight: 600; color: var(--muted); }
+        .spec dd { margin: .1rem 0 0; font-size: .875rem; font-weight: 700; color: var(--ink); }
+        .car-note { background: #F5F7FB; border-radius: 10px; padding: .55rem .75rem; font-size: .75rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+        .car-note strong { color: #334155; font-weight: 700; }
+        .car-actions { margin-top: auto; padding-top: .9rem; border-top: 1px solid #E6EBF3; display: flex; flex-direction: column; gap: .5rem; }
+        .btn-row { display: flex; gap: .5rem; }
+        .btn-row > * { flex: 1 1 0; min-width: 0; }
+
+        /* ============ Tabel ============ */
+        .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+        .tbl { width: 100%; min-width: 40rem; border-collapse: collapse; font-size: .8125rem; color: #3B475C; text-align: left; }
+        .tbl thead th {
+            background: #F3F5F9; color: var(--muted); font-size: .75rem; font-weight: 700;
+            padding: .7rem .9rem; white-space: nowrap; border-bottom: 1px solid var(--line);
+        }
+        .tbl tbody td { padding: .8rem .9rem; vertical-align: top; border-top: 1px solid #E9EDF4; }
+        .tbl tbody tr:first-child td { border-top: 0; }
+        .tbl tbody tr:hover td { background: #FAFBFD; }
+        .tbl .t-strong { font-weight: 700; color: var(--ink); }
+        .tbl .t-sub { display: block; font-size: .6875rem; color: var(--faint); margin-top: .1rem; }
+        .tbl .t-empty { text-align: center; color: var(--faint); padding: 2rem 1rem; font-size: .8125rem; }
+
+        /* ============ Tab segmented ============ */
+        .seg { display: inline-flex; gap: .25rem; padding: .25rem; background: #E9EDF5; border-radius: 12px; max-width: 100%; overflow-x: auto; }
+        .seg button {
+            font-family: inherit; font-size: .8125rem; font-weight: 700; color: var(--muted); cursor: pointer; white-space: nowrap;
+            padding: .5rem .95rem; border-radius: 9px; border: 0; background: transparent; transition: background .15s, color .15s;
+        }
+        .seg button:hover { color: var(--ink); }
+        .seg button.is-active { background: #fff; color: var(--blue); box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
+
+        /* ============ Modal ============ */
+        @keyframes panel-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+        .modal-panel {
+            width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 1.25rem;
+            box-shadow: 0 28px 60px -14px rgba(14, 42, 92, .4); animation: panel-in .18s ease-out;
+        }
+        @media (min-width: 640px) { .modal-panel { padding: 1.5rem; } }
+        .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; padding-bottom: .9rem; margin-bottom: 1rem; border-bottom: 1px solid #E6EBF3; }
+        .modal-title { font-size: 1.125rem; font-weight: 800; color: var(--navy); letter-spacing: -.015em; line-height: 1.3; }
+        .modal-foot { margin-top: 1.25rem; padding-top: .9rem; border-top: 1px solid #E6EBF3; display: flex; justify-content: flex-end; gap: .5rem; }
+        .sched-item { border: 1px solid var(--line); background: #F8FAFD; border-radius: 12px; padding: .75rem .85rem; font-size: .75rem; line-height: 1.5; }
+        .sched-item + .sched-item { margin-top: .5rem; }
+        .sched-empty { border-radius: 12px; padding: .8rem .9rem; font-size: .75rem; line-height: 1.5; background: #E9F7EF; color: #0F6B40; }
+
+        /* ============ Auth ============ */
+        .auth-card { max-width: 56rem; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+        @media (min-width: 768px) { .auth-card.has-aside { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+        .auth-aside { background: var(--navy); color: #fff; padding: 2.25rem; flex-direction: column; justify-content: space-between; gap: 2rem; }
+        .auth-aside h2 { font-size: 1.5rem; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; }
+        .auth-points { margin: 1.5rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .9rem; font-size: .8125rem; line-height: 1.55; color: #C9D6F2; }
+        .auth-points li { display: flex; gap: .65rem; }
+        .auth-points svg { width: 1.1rem; height: 1.1rem; margin-top: .15rem; color: var(--gold); flex-shrink: 0; }
+        .auth-main { padding: 1.75rem 1.5rem; }
+        @media (min-width: 640px) { .auth-main { padding: 2.5rem 2.5rem; } }
+
+        /* ============ Footer ============ */
+        .app-footer { border-top: 1px solid var(--line); background: #fff; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+        }
+    </style>
 </head>
-<body class="bg-brandBg text-slate-800 font-sans min-h-screen flex flex-col">
-    <nav class="bg-white border-b-4 border-brandYellow shadow-sm sticky top-0 z-40">
+<body class="text-slate-800 font-sans min-h-screen flex flex-col">
+    <% var hasUser = (typeof user !== 'undefined' && user); %>
+    <a href="#main" class="skip-link">Lewati ke konten</a>
+    <nav class="app-header" aria-label="Navigasi utama">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16 gap-2">
+            <div class="flex justify-between items-center h-16 gap-3">
                 <!-- Logo & Judul Aplikasi -->
-                <a href="/dashboard" class="flex items-center space-x-2 sm:space-x-3 hover:opacity-90 transition min-w-0">
-                    <img src="/images/kemenkeu.png" alt="Logo Kemenkeu" class="w-8 h-8 sm:w-10 sm:h-10 object-contain shrink-0">
-                    <span class="text-xs sm:text-base md:text-lg font-bold text-brandBlue truncate">Peminjaman Kendaraan Dinas KPP Pratama Kotabumi</span>
+                <a href="/dashboard" class="brand">
+                    <img src="/images/kemenkeu.png" alt="Logo Kemenkeu" class="w-9 h-9 sm:w-10 sm:h-10 object-contain shrink-0">
+                    <span class="brand-text">
+                        <span class="brand-kicker">KPP Pratama Kotabumi</span>
+                        <span class="brand-title">Peminjaman Kendaraan Dinas</span>
+                    </span>
                 </a>
 
                 <!-- Navigasi User Login -->
-                <% if (user) { %>
-                <div class="flex items-center space-x-2 sm:space-x-4 shrink-0">
-                    <span class="text-xs sm:text-sm text-slate-600 hidden md:inline"><strong class="text-brandBlue"></strong></span>
-                    <a href="/dashboard" class="text-xs sm:text-sm font-semibold text-slate-700 hover:text-brandBlue transition">Dashboard</a>
-                    <a href="/profile" class="text-xs sm:text-sm font-semibold text-slate-700 hover:text-brandBlue transition">Profil</a>
-                    <a href="/logout" class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm bg-rose-50 text-rose-600 rounded-md font-medium hover:bg-rose-100 transition">Logout</a>
+                <% if (hasUser) { %>
+                <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+                    <span class="hidden md:inline-flex items-center gap-2 mr-2" title="<%= user.nama || user.username || '' %>">
+                        <span class="avatar" aria-hidden="true"><%= String(user.nama || user.username || '?').trim().charAt(0).toUpperCase() %></span>
+                        <span class="text-sm font-semibold text-slate-700 max-w-[10rem] truncate"><%= user.nama || user.username || '' %></span>
+                    </span>
+                    <a href="/dashboard" data-nav class="nav-link">Dashboard</a>
+                    <a href="/profile" data-nav class="nav-link">Profil</a>
+                    <a href="/logout" class="nav-logout" aria-label="Logout">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"/></svg>
+                        <span class="hidden sm:inline">Logout</span>
+                    </a>
                 </div>
                 <% } %>
             </div>
         </div>
     </nav>
-    <main class="flex-grow max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8">
+    <script>
+        (function () {
+            var p = location.pathname.replace(/\/+$/, '') || '/';
+            document.querySelectorAll('[data-nav]').forEach(function (a) {
+                var h = a.getAttribute('href');
+                if (p === h || p.indexOf(h + '/') === 0) a.setAttribute('aria-current', 'page');
+            });
+        })();
+    </script>
+    <main id="main" class="flex-grow max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8">
