@@ -1,52 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const db = require('../config/db');
 
-// Halaman Root Redirect
-router.get('/', (req, res) => {
-    if (req.session.user) return res.redirect('/dashboard');
-    res.redirect('/login');
-});
-
-// GET Login
+// GET Login Page
 router.get('/login', (req, res) => {
+    if (req.session.user) return res.redirect('/dashboard');
     res.render('auth/login', { error: null });
 });
 
-// POST Login (Username & Password)
+// POST Login
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
         const result = await db.query('SELECT * FROM users WHERE username = $1', [username]);
-        const rows = result.rows;
+        if (result.rows.length === 0) {
+            return res.render('auth/login', { error: 'Username atau password salah!' });
+        }
 
-        if (rows.length === 0) {
+        const user = result.rows[0];
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
             return res.render('auth/login', { error: 'Username atau password salah!' });
         }
-        const user = rows[0];
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.render('auth/login', { error: 'Username atau password salah!' });
-        }
-        req.session.user = { 
-            id: user.id, 
-            username: user.username, 
-            nama: user.nama, 
-            nama_seksi: user.nama_seksi || '-',
-            role: user.role, 
-            jabatan: user.jabatan, 
-            no_hp: user.no_hp 
+
+        req.session.user = {
+            id: user.id,
+            username: user.username,
+            nama: user.nama,
+            role: user.role,
+            nama_seksi: user.nama_seksi
         };
+
         res.redirect('/dashboard');
     } catch (err) {
         console.error(err);
-        res.render('auth/login', { error: 'Terjadi kesalahan sistem' });
+        res.status(500).send('Database Error');
     }
 });
 
-// GET Register
+// GET Register Page
 router.get('/register', (req, res) => {
+    if (req.session.user) return res.redirect('/dashboard');
     res.render('auth/register', { error: null });
 });
 
@@ -58,73 +53,129 @@ router.post('/register', async (req, res) => {
             return res.render('auth/register', { error: 'Konfirmasi password tidak cocok!' });
         }
 
+        // Validasi format Username (Min 4 Karakter & Huruf/Angka saja)
+        const usernameRegex = /^[a-zA-Z0-9]{4,}$/;
+        if (!usernameRegex.test(username)) {
+            return res.render('auth/register', { error: 'Username minimal 4 karakter dan hanya boleh terdiri dari huruf dan angka!' });
+        }
+
         const existingRes = await db.query('SELECT * FROM users WHERE username = $1', [username]);
         if (existingRes.rows.length > 0) {
             return res.render('auth/register', { error: 'Username sudah digunakan!' });
         }
 
         let userRole = 'pegawai';
-
         if (role === 'admin') {
-            const secretKey = process.env.ADMIN_SECRET_KEY || 'ADM1998';
-            if (!admin_code || admin_code.trim() !== secretKey) {
-                return res.render('auth/register', { error: 'Secret Code Admin salah atau belum diisi!' });
+            if (admin_code !== 'ADMINKPP') { // Sesuaikan kode admin kamu jika ada
+                return res.render('auth/register', { error: 'Kode Admin tidak valid!' });
             }
             userRole = 'admin';
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await db.query(
-            'INSERT INTO users (username, nama, nama_seksi, password, role, jabatan, no_hp) VALUES ($1, $2, $3, $4, $5, $6, $7)', 
-            [username, nama, nama_seksi || '-', hashedPassword, userRole, userRole === 'admin' ? 'Admin Operasional' : 'Pegawai Kantor', '-']
+            'INSERT INTO users (username, nama, nama_seksi, password, role) VALUES ($1, $2, $3, $4, $5)',
+            [username, nama, nama_seksi, hashedPassword, userRole]
         );
+
         res.redirect('/login');
     } catch (err) {
         console.error(err);
-        res.render('auth/register', { error: 'Gagal melakukan registrasi: ' + err.message });
+        res.status(500).send('Gagal mendaftar: ' + err.message);
     }
 });
 
 // GET Logout
 router.get('/logout', (req, res) => {
-    req.session.destroy(() => {
-        res.redirect('/login');
-    });
+    req.session.destroy();
+    res.redirect('/login');
 });
 
-// GET Profile
-router.get('/profile', (req, res) => {
+// GET Profile Page
+router.get('/profile', async (req, res) => {
     if (!req.session.user) return res.redirect('/login');
-    res.render('profile', { error: null, success: null });
+    try {
+        const userRes = await db.query('SELECT id, username, nama, nama_seksi, role FROM users WHERE id = $1', [req.session.user.id]);
+        const user = userRes.rows[0];
+        res.render('profile', { user, error: null, success: null });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Database Error');
+    }
 });
 
-// POST Edit Profile (Username, Nama, dan Seksi)
-router.post('/profile/edit', async (req, res) => {
+// POST Update Profile
+router.post('/profile/update', async (req, res) => {
     if (!req.session.user) return res.redirect('/login');
-    const { username, nama, nama_seksi } = req.body;
+    const { nama, username, nama_seksi, password_confirm } = req.body;
     const userId = req.session.user.id;
 
     try {
-        // Cek jika username diganti, apakah sudah ada user lain yang memakai
-        const checkUser = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, userId]);
-        if (checkUser.rows.length > 0) {
-            return res.render('profile', { error: 'Username sudah digunakan oleh akun lain!', success: null });
+        const userRes = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const currentUser = userRes.rows[0];
+
+        // 1. Validasi Username: Minimal 4 karakter & Alphanumeric
+        const usernameRegex = /^[a-zA-Z0-9]{4,}$/;
+        if (!usernameRegex.test(username)) {
+            return res.render('profile', {
+                user: { ...currentUser, nama, username, nama_seksi },
+                error: 'Username minimal 4 karakter dan hanya boleh terdiri dari huruf dan angka (tanpa spasi/simbol).',
+                success: null
+            });
         }
 
+        // 2. Jika Username Diubah, Wajib Konfirmasi Password
+        const isUsernameChanged = username.trim() !== currentUser.username;
+        if (isUsernameChanged) {
+            if (!password_confirm) {
+                return res.render('profile', {
+                    user: { ...currentUser, nama, username, nama_seksi },
+                    error: 'Konfirmasi password diperlukan untuk mengubah username.',
+                    success: null
+                });
+            }
+
+            const validPassword = await bcrypt.compare(password_confirm, currentUser.password);
+            if (!validPassword) {
+                return res.render('profile', {
+                    user: { ...currentUser, nama, username, nama_seksi },
+                    error: 'Password konfirmasi salah. Perubahan username dibatalkan.',
+                    success: null
+                });
+            }
+
+            // Cek apakah username baru sudah terpakai
+            const checkUsername = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, userId]);
+            if (checkUsername.rows.length > 0) {
+                return res.render('profile', {
+                    user: { ...currentUser, nama, username, nama_seksi },
+                    error: 'Username sudah digunakan oleh pengguna lain.',
+                    success: null
+                });
+            }
+        }
+
+        // Update database
         await db.query(
-            'UPDATE users SET username = $1, nama = $2, nama_seksi = $3 WHERE id = $4',
-            [username, nama, nama_seksi, userId]
+            'UPDATE users SET nama = $1, username = $2, nama_seksi = $3 WHERE id = $4',
+            [nama, username, nama_seksi, userId]
         );
 
-        // Update Session User
-        req.session.user.username = username;
+        // Update Session
         req.session.user.nama = nama;
+        req.session.user.username = username;
         req.session.user.nama_seksi = nama_seksi;
 
-        res.render('profile', { error: null, success: 'Profil berhasil diperbarui!' });
+        const updatedUserRes = await db.query('SELECT id, username, nama, nama_seksi, role FROM users WHERE id = $1', [userId]);
+
+        res.render('profile', {
+            user: updatedUserRes.rows[0],
+            error: null,
+            success: 'Profil berhasil diperbarui!'
+        });
     } catch (err) {
         console.error(err);
-        res.render('profile', { error: 'Gagal memperbarui profil: ' + err.message, success: null });
+        res.status(500).send('Gagal memperbarui profil: ' + err.message);
     }
 });
 
