@@ -52,9 +52,12 @@ router.get('/register', (req, res) => {
 // POST Register
 router.post('/register', async (req, res) => {
     const { username, nama, nama_seksi, password, confirm_password, role, admin_code } = req.body;
+    
+    // Simpan semua data inputan form agar tidak terhapus saat timbul error
     const formData = { username, nama, nama_seksi, role, admin_code };
 
     try {
+        // 1. Validasi Password Match
         if (password !== confirm_password) {
             return res.render('auth/register', { 
                 error: 'Konfirmasi password tidak cocok!', 
@@ -63,7 +66,7 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // Validasi Format Username (Min 4 Karakter & Huruf/Angka saja)
+        // 2. Validasi Format Username (Min 4 Karakter & Hanya Huruf/Angka)
         const usernameRegex = /^[a-zA-Z0-9]{4,}$/;
         if (!usernameRegex.test(username)) {
             return res.render('auth/register', { 
@@ -73,6 +76,7 @@ router.post('/register', async (req, res) => {
             });
         }
 
+        // 3. Cek Keberadaan Username di Database
         const existingRes = await db.query('SELECT * FROM users WHERE username = $1', [username]);
         if (existingRes.rows.length > 0) {
             return res.render('auth/register', { 
@@ -82,6 +86,7 @@ router.post('/register', async (req, res) => {
             });
         }
 
+        // 4. Validasi Role Admin
         let userRole = 'pegawai';
         if (role === 'admin') {
             if (admin_code !== 'ADMINKPP') {
@@ -94,6 +99,7 @@ router.post('/register', async (req, res) => {
             userRole = 'admin';
         }
 
+        // 5. Hash Password & Simpan ke Database
         const hashedPassword = await bcrypt.hash(password, 10);
         await db.query(
             'INSERT INTO users (username, nama, nama_seksi, password, role) VALUES ($1, $2, $3, $4, $5)',
@@ -103,7 +109,11 @@ router.post('/register', async (req, res) => {
         res.redirect('/login');
     } catch (err) {
         console.error(err);
-        res.status(500).send('Gagal mendaftar: ' + err.message);
+        res.render('auth/register', { 
+            error: 'Gagal mendaftar: ' + err.message, 
+            formData, 
+            isUsernameError: false 
+        });
     }
 });
 
