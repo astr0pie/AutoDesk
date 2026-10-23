@@ -1,43 +1,31 @@
 <%- include('../partials/header') %>
-<div class="max-w-md mx-auto my-8 bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-    <h2 class="text-2xl font-bold text-brandBlue mb-2">Registrasi User Baru</h2>
-    <p class="text-xs text-slate-500 mb-6">Buat akun pegawai atau admin baru untuk Login.</p>
-    
-    <!-- Box Error Dinamis (Tampil saat validasi gagal) -->
-    <div id="errorAlert" class="hidden p-3 mb-4 text-xs text-rose-700 bg-rose-100 rounded-lg">
-        <% if(error) { %><%= error %><% } %>
-    </div>
-    <% if(error) { %>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const alert = document.getElementById('errorAlert');
-                alert.classList.remove('hidden');
-                alert.innerText = "<%= error %>";
-            });
-        </script>
-    <% } %>
+<div class="my-4 sm:my-8">
+    <div class="auth-card" style="max-width:36rem;">
+        <div class="auth-main">
+            <h1 class="page-title" style="font-size:1.625rem;">Registrasi User Baru</h1>
+            <p class="page-sub mb-6">Buat akun pegawai atau admin baru untuk Login.</p>
 
-    <form action="/register" method="POST" onsubmit="return validateForm()" class="space-y-4">
-        <!-- Username -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
-            <input type="text" id="usernameInput" name="username" value="<%= typeof formData !== 'undefined' && formData.username ? formData.username : '' %>" required placeholder="Contoh: pegawai123" 
-                class="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none font-mono">
-            <p id="usernameNote" class="text-[11px] text-slate-400 mt-1">
-                💡 Minimal 4 karakter, hanya kombinasi huruf dan angka.
-            </p>
-        </div>
+            <!-- Box Error Dinamis (tampil saat validasi server/browser gagal) -->
+            <div id="errorAlert" role="alert" class="alert alert-error mb-4 <%= error ? '' : 'hidden' %>"><%= error ? error : '' %></div>
 
-        <!-- Nama Lengkap -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap</label>
-            <input type="text" name="nama" value="<%= typeof formData !== 'undefined' && formData.nama ? formData.nama : '' %>" required placeholder="Masukkan nama lengkap Anda" class="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
-        </div>
+            <form action="/register" method="POST" onsubmit="return validateForm()" class="space-y-4">
+                <!-- Username -->
+                <div>
+                    <label for="usernameInput" class="label">Username</label>
+                    <input type="text" id="usernameInput" name="username" value="<%= typeof formData !== 'undefined' && formData.username ? formData.username : '' %>" required autocomplete="username" autocapitalize="none" placeholder="Contoh: pegawai123" class="field field-mono">
+                    <p id="usernameNote" class="hint">Minimal 4 karakter, hanya kombinasi huruf dan angka.</p>
+                </div>
 
-        <!-- Seksi / Unit Kerja -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Seksi / Unit Kerja</label>
-            <select name="nama_seksi" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none bg-white">
+                <!-- Nama Lengkap -->
+                <div>
+                    <label for="namaInput" class="label">Nama Lengkap</label>
+                    <input type="text" id="namaInput" name="nama" value="<%= typeof formData !== 'undefined' && formData.nama ? formData.nama : '' %>" required autocomplete="name" placeholder="Masukkan nama lengkap Anda" class="field">
+                </div>
+
+                <!-- Seksi / Unit Kerja -->
+                <div>
+                    <label for="seksiSelect" class="label">Seksi / Unit Kerja</label>
+                    <select id="seksiSelect" name="nama_seksi" required class="field">
                 <option value="" disabled <%= (typeof formData === 'undefined' || !formData.nama_seksi) ? 'selected' : '' %>>-- Pilih Seksi / Unit Kerja --</option>
                 <option value="Pelayanan" <%= (typeof formData !== 'undefined' && formData.nama_seksi === 'Pelayanan') ? 'selected' : '' %>>Pelayanan</option>
                 <option value="Penjaminan Kualitas Data" <%= (typeof formData !== 'undefined' && formData.nama_seksi === 'Penjaminan Kualitas Data') ? 'selected' : '' %>>Penjaminan Kualitas Data</option>
@@ -49,67 +37,76 @@
                 <option value="Pengawasan V" <%= (typeof formData !== 'undefined' && formData.nama_seksi === 'Pengawasan V') ? 'selected' : '' %>>Pengawasan V</option>
                 <option value="Pengawasan VI" <%= (typeof formData !== 'undefined' && formData.nama_seksi === 'Pengawasan VI') ? 'selected' : '' %>>Pengawasan VI</option>
                 <option value="Subbagian Umum dan Kepatuhan Internal" <%= (typeof formData !== 'undefined' && formData.nama_seksi === 'Subbagian Umum dan Kepatuhan Internal') ? 'selected' : '' %>>Subbagian Umum dan Kepatuhan Internal</option>
-            </select>
-        </div>
+                    </select>
+                </div>
 
-        <!-- Password -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
-            <div class="relative">
-                <input type="password" id="regPassword" name="password" required class="w-full p-2.5 pr-10 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
-                <button type="button" onclick="togglePassword('regPassword', 'eyeIcon1')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
-                    <svg id="eyeIcon1" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                </button>
+                <!-- Password -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="regPassword" class="label">Password</label>
+                <div class="relative">
+                    <input type="password" id="regPassword" name="password" required autocomplete="new-password" class="field" style="padding-right:2.8rem;">
+                    <button type="button" onclick="togglePassword('regPassword', 'eyeIcon1')" class="pw-toggle" aria-label="Tampilkan atau sembunyikan password">
+                        <svg id="eyeIcon1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </div>
 
-        <!-- Konfirmasi Password -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Konfirmasi Password</label>
-            <div class="relative">
-                <input type="password" id="confirmPassword" name="confirm_password" required class="w-full p-2.5 pr-10 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
-                <button type="button" onclick="togglePassword('confirmPassword', 'eyeIcon2')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
-                    <svg id="eyeIcon2" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                </button>
+            <div>
+                <label for="confirmPassword" class="label">Konfirmasi Password</label>
+                <div class="relative">
+                    <input type="password" id="confirmPassword" name="confirm_password" required autocomplete="new-password" class="field" style="padding-right:2.8rem;">
+                    <button type="button" onclick="togglePassword('confirmPassword', 'eyeIcon2')" class="pw-toggle" aria-label="Tampilkan atau sembunyikan konfirmasi password">
+                        <svg id="eyeIcon2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </div>
+                </div>
 
-        <!-- Role -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Daftar Sebagai (Role)</label>
-            <select name="role" id="roleSelect" onchange="toggleAdminCode()" class="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none bg-white">
-                <option value="pegawai" <%= (typeof formData !== 'undefined' && formData.role === 'pegawai') ? 'selected' : '' %>>Pegawai Kantor</option>
-                <option value="admin" <%= (typeof formData !== 'undefined' && formData.role === 'admin') ? 'selected' : '' %>>Admin Operasional</option>
-            </select>
-        </div>
+                <!-- Role -->
+                <div>
+                    <label for="roleSelect" class="label">Daftar Sebagai (Role)</label>
+                    <select name="role" id="roleSelect" onchange="toggleAdminCode()" class="field">
+                        <option value="pegawai" <%= (typeof formData !== 'undefined' && formData.role === 'pegawai') ? 'selected' : '' %>>Pegawai Kantor</option>
+                        <option value="admin" <%= (typeof formData !== 'undefined' && formData.role === 'admin') ? 'selected' : '' %>>Admin Operasional</option>
+                    </select>
+                </div>
 
-        <!-- Secret Code Input (Khusus Admin) -->
-        <div id="adminCodeGroup" class="<%= (typeof formData !== 'undefined' && formData.role === 'admin') ? '' : 'hidden' %> pt-2 border-t border-slate-100">
-            <label class="block text-xs font-semibold text-amber-800 mb-1">Secret Code Admin</label>
-            <input type="password" name="admin_code" id="adminCodeInput" value="<%= typeof formData !== 'undefined' && formData.admin_code ? formData.admin_code : '' %>" placeholder="Masukkan Kode Admin" class="w-full p-2.5 text-sm border border-amber-300 bg-amber-50 rounded-lg focus:outline-none">
-        </div>
+                <!-- Secret Code Input (Khusus Admin) -->
+                <div id="adminCodeGroup" class="<%= (typeof formData !== 'undefined' && formData.role === 'admin') ? '' : 'hidden' %> pt-4 border-t border-slate-200">
+                    <label for="adminCodeInput" class="label" style="color:#7A4F00;">Secret Code Admin</label>
+                    <input type="password" name="admin_code" id="adminCodeInput" value="<%= typeof formData !== 'undefined' && formData.admin_code ? formData.admin_code : '' %>" placeholder="Masukkan Kode Admin" autocomplete="off" class="field field-amber">
+                </div>
 
-        <button type="submit" class="w-full py-2.5 bg-brandYellow hover:bg-yellow-500 text-slate-900 font-bold text-sm rounded-lg transition mt-2">Daftar Akun</button>
-    </form>
-    <p class="text-xs text-center text-slate-600 mt-4">Sudah punya akun? <a href="/login" class="text-brandBlue font-bold underline">Login</a></p>
+                <button type="submit" class="btn btn-accent btn-block" style="padding:.75rem 1rem;font-size:.875rem;">Daftar Akun</button>
+            </form>
+            <p class="text-xs text-center text-slate-600 mt-5">Sudah punya akun? <a href="/login" class="text-brandBlue font-bold underline underline-offset-2 hover:text-brandNavy">Login</a></p>
+        </div>
+    </div>
 </div>
 
 <script>
+var EYE_OPEN = '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+var EYE_OFF = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />';
+
 function togglePassword(inputId, iconId) {
     const pwdInput = document.getElementById(inputId);
     const eyeIcon = document.getElementById(iconId);
+    const btn = eyeIcon.parentElement;
     if (pwdInput.type === 'password') {
         pwdInput.type = 'text';
-        eyeIcon.classList.add('text-brandBlue');
+        eyeIcon.innerHTML = EYE_OFF;
+        btn.classList.add('is-on');
     } else {
         pwdInput.type = 'password';
-        eyeIcon.classList.remove('text-brandBlue');
+        eyeIcon.innerHTML = EYE_OPEN;
+        btn.classList.remove('is-on');
     }
 }
 
@@ -133,19 +130,15 @@ function validateForm() {
     const confirmPwd = document.getElementById('confirmPassword').value;
 
     // Reset Style Error
-    usernameInput.classList.remove('border-rose-500', 'bg-rose-50', 'text-rose-600');
-    usernameInput.classList.add('border-slate-300');
-    usernameNote.classList.remove('text-rose-500', 'font-semibold');
-    usernameNote.classList.add('text-slate-400');
+    usernameInput.classList.remove('is-invalid');
+    usernameNote.classList.remove('is-invalid-note');
     errorAlert.classList.add('hidden');
 
     // 1. Validasi Username (Min 4 Karakter, Alphanumeric saja)
     const usernameRegex = /^[a-zA-Z0-9]{4,}$/;
     if (!usernameRegex.test(username)) {
-        usernameInput.classList.remove('border-slate-300');
-        usernameInput.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-600');
-        usernameNote.classList.remove('text-slate-400');
-        usernameNote.classList.add('text-rose-500', 'font-semibold');
+        usernameInput.classList.add('is-invalid');
+        usernameNote.classList.add('is-invalid-note');
 
         errorAlert.innerText = "Username minimal 4 karakter dan hanya boleh terdiri dari huruf dan angka!";
         errorAlert.classList.remove('hidden');

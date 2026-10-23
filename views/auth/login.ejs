@@ -1,44 +1,76 @@
 <%- include('../partials/header') %>
-<div class="max-w-md mx-auto my-12 bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-    <h2 class="text-2xl font-bold text-brandBlue mb-2">Login User</h2>
-    <p class="text-xs text-slate-500 mb-6">Masukkan username dan password akun.</p>
-    
-    <% if(error) { %>
-        <div class="p-3 mb-4 text-xs text-rose-700 bg-rose-100 rounded-lg"><%= error %></div>
-    <% } %>
-
-    <form action="/login" method="POST" class="space-y-4">
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
-            <input type="text" name="username" required placeholder="Please input your username." class="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
-        </div>
-        <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
-            <div class="relative">
-                <input type="password" id="loginPassword" name="password" required class="w-full p-2.5 pr-10 text-sm border border-slate-300 rounded-lg focus:border-brandBlue focus:outline-none">
-                <button type="button" onclick="togglePassword('loginPassword', 'eyeIconLogin')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
-                    <svg id="eyeIconLogin" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                </button>
+<div class="my-4 sm:my-10">
+    <div class="auth-card has-aside">
+        <!-- Panel informasi (tampil di layar md ke atas) -->
+        <aside class="auth-aside hidden md:flex">
+            <div>
+                <h2>Pinjam kendaraan dinas KPP Pratama Kotabumi</h2>
+                <ul class="auth-points">
+                    <li>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                        <span>Lihat status setiap unit dan jadwal booking yang sudah terisi.</span>
+                    </li>
+                    <li>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                        <span>Pesan unit untuk pemakaian hingga 7 hari ke depan.</span>
+                    </li>
+                    <li>
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                        <span>Laporkan kondisi mobil saat mengembalikannya.</span>
+                    </li>
+                </ul>
             </div>
-        </div>
-        <button type="submit" class="w-full py-2.5 bg-brandBlue hover:bg-blue-800 text-white font-bold text-sm rounded-lg transition">Masuk</button>
-    </form>
-    <p class="text-xs text-center text-slate-600 mt-4">Belum punya akun? <a href="/register" class="text-brandBlue font-bold underline">Daftar Akun Baru</a></p>
+            <span class="plate self-start">Kendaraan Dinas</span>
+        </aside>
+
+        <section class="auth-main">
+            <h1 class="page-title" style="font-size:1.625rem;">Login User</h1>
+            <p class="page-sub mb-6">Masukkan username dan password akun.</p>
+
+            <% if(error) { %>
+                <div class="alert alert-error mb-4" role="alert"><%= error %></div>
+            <% } %>
+
+            <form action="/login" method="POST" class="space-y-4">
+                <div>
+                    <label for="loginUsername" class="label">Username</label>
+                    <input type="text" id="loginUsername" name="username" required autocomplete="username" autocapitalize="none" placeholder="Masukkan username" class="field">
+                </div>
+                <div>
+                    <label for="loginPassword" class="label">Password</label>
+                    <div class="relative">
+                        <input type="password" id="loginPassword" name="password" required autocomplete="current-password" placeholder="Masukkan password" class="field" style="padding-right:2.8rem;">
+                        <button type="button" onclick="togglePassword('loginPassword', 'eyeIconLogin')" class="pw-toggle" id="eyeBtnLogin" aria-label="Tampilkan atau sembunyikan password">
+                            <svg id="eyeIconLogin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="padding:.75rem 1rem;font-size:.875rem;">Masuk</button>
+            </form>
+            <p class="text-xs text-center text-slate-600 mt-5">Belum punya akun? <a href="/register" class="text-brandBlue font-bold underline underline-offset-2 hover:text-brandNavy">Daftar Akun Baru</a></p>
+        </section>
+    </div>
 </div>
 
 <script>
+var EYE_OPEN = '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+var EYE_OFF = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />';
+
 function togglePassword(inputId, iconId) {
     const pwdInput = document.getElementById(inputId);
     const eyeIcon = document.getElementById(iconId);
+    const btn = eyeIcon.parentElement;
     if (pwdInput.type === 'password') {
         pwdInput.type = 'text';
-        eyeIcon.classList.add('text-brandBlue');
+        eyeIcon.innerHTML = EYE_OFF;
+        btn.classList.add('is-on');
     } else {
         pwdInput.type = 'password';
-        eyeIcon.classList.remove('text-brandBlue');
+        eyeIcon.innerHTML = EYE_OPEN;
+        btn.classList.remove('is-on');
     }
 }
 </script>
