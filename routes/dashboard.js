@@ -15,23 +15,16 @@ router.get('/', async (req, res) => {
     try {
         const { show_all, bulan, tahun } = req.query;
 
-        // Query data mobil + peminjam aktif hari ini (Status APPROVED)
+        // Query data mobil + deteksi apakah sedang dipinjam/booked hari ini
         const mobilRes = await db.query(`
             SELECT m.id, m.plat_nomor, m.merk_tipe, m.kategori, m.kapasitas, m.tahun, m.status, m.kondapat_catatan,
-                   p.id as peminjaman_id,
-                   p.tujuan_peminjaman, 
-                   p.tgl_mulai, 
-                   p.tgl_selesai, 
-                   p.lama_pinjam_hari,
-                   p.status_peminjaman,
-                   u.nama as nama_peminjam, 
-                   u.username as username_peminjam,
-                   u.nama_seksi as seksi_peminjam
+                   EXISTS (
+                       SELECT 1 FROM peminjaman p 
+                       WHERE p.mobil_id = m.id 
+                       AND p.status_peminjaman = 'APPROVED'
+                       AND CURRENT_DATE BETWEEN DATE(p.tgl_mulai) AND DATE(p.tgl_selesai)
+                   ) as is_booked
             FROM mobil m
-            LEFT JOIN peminjaman p ON m.id = p.mobil_id 
-                 AND p.status_peminjaman = 'APPROVED'
-                 AND CURRENT_DATE BETWEEN DATE(p.tgl_mulai) AND DATE(p.tgl_selesai)
-            LEFT JOIN users u ON p.user_id = u.id
             ORDER BY m.id ASC
         `);
         const mobilList = mobilRes.rows;
@@ -40,12 +33,10 @@ router.get('/', async (req, res) => {
             let whereClause = "WHERE 1=1";
             let queryParams = [];
 
-            // Filtering bawaan: 1 bulan terakhir jika show_all tidak aktif & tidak ada filter bulan
             if (show_all !== 'true' && !bulan) {
                 whereClause += " AND p.tgl_mulai >= NOW() - INTERVAL '1 month'";
             }
 
-            // Filtering spesifik Bulan & Tahun
             if (bulan && tahun) {
                 queryParams.push(parseInt(bulan));
                 queryParams.push(parseInt(tahun));
@@ -63,7 +54,6 @@ router.get('/', async (req, res) => {
 
             const allLogs = peminjamanRes.rows;
 
-            // Pemisahan log: Sedang Dipinjam (APPROVED) dan Selesai/Ditolak (RETURNED / REJECTED)
             const approvedList = allLogs.filter(p => p.status_peminjaman === 'APPROVED');
             const finishedList = allLogs.filter(p => p.status_peminjaman === 'RETURNED' || p.status_peminjaman === 'REJECTED');
 
@@ -100,7 +90,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// API Endpoint: Get Daftar Jadwal Ter-booking (Hanya status APPROVED yang memblokir kalender)
+// API Endpoint: Get Daftar Jadwal Ter-booking
 router.get('/mobil/:id/jadwal', async (req, res) => {
     try {
         const { id } = req.params;
@@ -119,7 +109,7 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman (AUTO-APPROVED & Maksimal 7 Hari dari Hari Ini)
+// Pegawai: Ajukan Peminjaman
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
@@ -131,7 +121,6 @@ router.post('/pinjam', async (req, res) => {
         const start = new Date(tgl_mulai);
         const end = new Date(tgl_selesai);
 
-        // Batas maksimal H+7 dari hari pemesanan
         const maxAllowedDate = new Date(today);
         maxAllowedDate.setDate(maxAllowedDate.getDate() + 7);
         maxAllowedDate.setHours(23, 59, 59, 999);
@@ -145,7 +134,6 @@ router.post('/pinjam', async (req, res) => {
             `);
         }
 
-        // Cek Bentrok Jadwal dengan Peminjaman Aktif (APPROVED)
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 
@@ -165,7 +153,6 @@ router.post('/pinjam', async (req, res) => {
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
-        // Langsung simpan dengan status APPROVED
         await db.query(
             'INSERT INTO peminjaman (user_id, mobil_id, tujuan_peminjaman, tgl_mulai, tgl_selesai, lama_pinjam_hari, status_peminjaman) VALUES ($1, $2, $3, $4, $5, $6, $7)',
             [userId, mobil_id, tujuan, tgl_mulai, tgl_selesai, diffDays, 'APPROVED']

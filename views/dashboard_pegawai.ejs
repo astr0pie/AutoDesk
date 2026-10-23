@@ -62,12 +62,12 @@
         <article class="car-card">
             <div class="car-top">
                 <span class="plate"><%= m.plat_nomor %></span>
-                <% if(m.status === 'FREE') { %>
-                    <span class="badge badge-free">FREE</span>
-                <% } else if(m.status === 'DIPINJAM') { %>
-                    <span class="badge badge-busy">DIPINJAM</span>
+                <% if(m.is_booked || m.status === 'DIPINJAM') { %>
+                    <span class="badge badge-busy">● Booked</span>
+                <% } else if(m.status === 'FREE') { %>
+                    <span class="badge badge-free">● FREE</span>
                 <% } else { %>
-                    <span class="badge badge-maint">MAINTENANCE</span>
+                    <span class="badge badge-maint">● MAINTENANCE</span>
                 <% } %>
             </div>
 
@@ -116,10 +116,21 @@
             </button>
         </div>
 
-        <div>
-            <h4 class="label mb-2">Daftar Jadwal Ter-booking</h4>
-            <div id="jadwalContainer">
-                <p class="text-xs text-slate-400">Memuat data jadwal...</p>
+        <div class="space-y-4">
+            <!-- Tombol Cek Tanggal Ter-booking -->
+            <div>
+                <button id="pegawaiCalendarBtn" type="button" class="w-full py-2.5 px-4 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 font-bold text-xs hover:bg-slate-200 transition text-left flex items-center justify-between">
+                    <span>📅 Melihat Tanggal Ter-booking</span>
+                    <span class="text-slate-500 font-normal text-[11px]">Klik untuk lihat kalender</span>
+                </button>
+                <input type="text" id="pegawaiCalendarView" class="hidden">
+            </div>
+
+            <div>
+                <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
+                <div id="jadwalContainer">
+                    <p class="text-xs text-slate-400">Memuat data jadwal...</p>
+                </div>
             </div>
         </div>
 
@@ -240,10 +251,9 @@
 </section>
 
 <script>
-let fpMulai, fpSelesai;
+let fpMulai, fpSelesai, fpPegawaiView;
 let activeMobilForBooking = { id: '', merk: '', plat: '' };
 
-// Escape teks dari database sebelum dimasukkan ke innerHTML
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -263,6 +273,38 @@ function openDetailModal(mobilId, merk, plat) {
     fetch(`/dashboard/mobil/${mobilId}/jadwal`)
         .then(res => res.json())
         .then(data => {
+            const disableRanges = [];
+            data.forEach(item => {
+                disableRanges.push({
+                    from: item.tgl_mulai.split('T')[0],
+                    to: item.tgl_selesai.split('T')[0]
+                });
+            });
+
+            if (fpPegawaiView) fpPegawaiView.destroy();
+            fpPegawaiView = flatpickr("#pegawaiCalendarView", {
+                inline: false,
+                dateFormat: "Y-m-d",
+                disable: disableRanges,
+                onDayCreate: function(dObj, dStr, fp, dayElem) {
+                    const dayDate = dayElem.dateObj;
+                    disableRanges.forEach(range => {
+                        const start = new Date(range.from);
+                        const end = new Date(range.to);
+                        start.setHours(0,0,0,0);
+                        end.setHours(23,59,59,999);
+                        if (dayDate >= start && dayDate <= end) {
+                            dayElem.classList.add("booked-date");
+                            dayElem.title = "Sudah ter-booking";
+                        }
+                    });
+                }
+            });
+
+            document.getElementById('pegawaiCalendarBtn').onclick = () => {
+                fpPegawaiView.open();
+            };
+
             if (data.length === 0) {
                 container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking. Mobil ini sepenuhnya bebas dipinjam!</div>';
                 return;
@@ -323,7 +365,6 @@ function openBookingModal(mobilId, merk, plat) {
             if (fpMulai) fpMulai.destroy();
             if (fpSelesai) fpSelesai.destroy();
 
-            // Hitung tanggal batas maksimal (H+7 dari hari ini)
             const maxDateLimit = new Date();
             maxDateLimit.setDate(maxDateLimit.getDate() + 7);
 

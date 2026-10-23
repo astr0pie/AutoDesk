@@ -87,12 +87,12 @@
         <article class="car-card">
             <div class="car-top">
                 <span class="plate"><%= m.plat_nomor %></span>
-                <% if(m.status === 'FREE') { %>
-                    <span class="badge badge-free">FREE</span>
-                <% } else if(m.status === 'DIPINJAM') { %>
-                    <span class="badge badge-busy">DIPINJAM</span>
+                <% if(m.is_booked || m.status === 'DIPINJAM') { %>
+                    <span class="badge badge-busy">● Booked</span>
+                <% } else if(m.status === 'FREE') { %>
+                    <span class="badge badge-free">● FREE</span>
                 <% } else { %>
-                    <span class="badge badge-maint">MAINTENANCE</span>
+                    <span class="badge badge-maint">● MAINTENANCE</span>
                 <% } %>
             </div>
 
@@ -175,7 +175,7 @@
         </form>
     </div>
 
-    <!-- Navigation Tabs Kategori (Dua Tab: Sedang Dipinjam & Selesai/Ditolak) -->
+    <!-- Navigation Tabs Kategori -->
     <div class="seg mb-4" role="tablist">
         <button type="button" onclick="switchTab('approved')" id="tab-approved" role="tab" aria-selected="true" class="is-active">
             Sedang Dipinjam (<%= approvedList.length %>)
@@ -331,10 +331,14 @@
             <button type="button" onclick="closeAdminJadwalModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
 
-        <div class="space-y-5">
+        <div class="space-y-4">
+            <!-- Tombol Cek Tanggal Ter-booking (Tulisan Hitam & Berfungsi sebagai Trigger) -->
             <div>
-                <label for="adminCalendarView" class="label">Visualisasi Kalender Booking</label>
-                <input type="text" id="adminCalendarView" placeholder="Melihat Tanggal Ter-booking" class="field cursor-pointer" readonly>
+                <button id="adminCalendarBtn" type="button" class="w-full py-2.5 px-4 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 font-bold text-xs hover:bg-slate-200 transition text-left flex items-center justify-between">
+                    <span>📅 Melihat Tanggal Ter-booking</span>
+                    <span class="text-slate-500 font-normal text-[11px]">Klik untuk lihat kalender</span>
+                </button>
+                <input type="text" id="adminCalendarView" class="hidden">
             </div>
 
             <div>
@@ -354,7 +358,6 @@
 <script>
 let fpAdmin;
 
-// Escape teks dari database sebelum dimasukkan ke innerHTML
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -440,6 +443,10 @@ function openAdminJadwalModal(mobilId, merk, plat) {
                     });
                 }
             });
+
+            document.getElementById('adminCalendarBtn').onclick = () => {
+                fpAdmin.open();
+            };
 
             if (data.length === 0) {
                 container.innerHTML = '<div class="sched-empty">Belum ada peminjaman terdaftar pada unit ini.</div>';
