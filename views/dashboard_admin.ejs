@@ -159,7 +159,7 @@
         <!-- Filter Bulan & Opsi Tampilkan Semua -->
         <form action="/dashboard" method="GET" class="flex flex-wrap items-center gap-2">
             <select name="bulan" aria-label="Filter bulan" class="field field-sm" style="width:auto;">
-                <option value="">-- Filter Bulan --</option>
+                <option value=""> Filter Bulan </option>
                 <% ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].forEach((namaBulan, i) => { %>
                 <option value="<%= i + 1 %>" <%= String(selectedBulan) === String(i + 1) ? 'selected' : '' %>><%= namaBulan %></option>
                 <% }) %>
@@ -207,7 +207,7 @@
                     <tr>
                         <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
                         <td><%= p.nama_seksi || '-' %></td>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><br><span class="plate plate-sm mt-1"><%= p.plat_nomor %></span></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
                         <td><%= p.tujuan_peminjaman %></td>
                         <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= new Date(p.tgl_mulai).toLocaleDateString('id-ID') %> - <%= new Date(p.tgl_selesai).toLocaleDateString('id-ID') %></span></td>
                         <td class="whitespace-nowrap">
@@ -247,7 +247,7 @@
                     <tr>
                         <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
                         <td><%= p.nama_seksi || '-' %></td>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><br><span class="plate plate-sm mt-1"><%= p.plat_nomor %></span></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
                         <td><%= p.tujuan_peminjaman %></td>
                         <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= new Date(p.tgl_mulai).toLocaleDateString('id-ID') %> - <%= new Date(p.tgl_selesai).toLocaleDateString('id-ID') %></span></td>
                         <td class="whitespace-nowrap">
