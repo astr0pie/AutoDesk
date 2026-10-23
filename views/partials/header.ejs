@@ -43,7 +43,7 @@
             --ink: #0F172A;
             --muted: #5B6678;
             --faint: #94A0B4;
-            --plate: #B3141B;
+            --plate: #8F3A3A;
         }
 
         html { -webkit-text-size-adjust: 100%; }
@@ -191,8 +191,8 @@
         .plate {
             display: inline-block; font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 600;
             font-size: 1rem; line-height: 1.25; letter-spacing: .09em; text-transform: uppercase; color: #fff; background: var(--plate);
-            padding: .12rem .65rem; border-radius: 6px; border: 1px solid #7C0E13; white-space: nowrap;
-            box-shadow: inset 0 0 0 2px var(--plate), inset 0 0 0 3px rgba(255, 255, 255, .85);
+            padding: .12rem .65rem; border-radius: 6px; border: 1px solid #6B2B2B; white-space: nowrap;
+            box-shadow: inset 0 0 0 2px var(--plate), inset 0 0 0 3px rgba(255, 255, 255, .55);
         }
         .plate-sm { font-size: .8125rem; padding: 0 .5rem; border-radius: 4px; }
 
@@ -286,6 +286,10 @@
                 <!-- Navigasi User Login -->
                 <% if (hasUser) { %>
                 <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+                    <span class="hidden md:inline-flex items-center gap-2 mr-2" title="<%= user.nama || user.username || '' %>">
+                        <span class="avatar" aria-hidden="true"><%= String(user.nama || user.username || '?').trim().charAt(0).toUpperCase() %></span>
+                        <span class="text-sm font-semibold text-slate-700 max-w-[10rem] truncate"><%= user.nama || user.username || '' %></span>
+                    </span>
                     <a href="/dashboard" data-nav class="nav-link">Dashboard</a>
                     <a href="/profile" data-nav class="nav-link">Profil</a>
                     <a href="/logout" class="nav-logout" aria-label="Logout">
