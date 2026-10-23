@@ -88,11 +88,11 @@
             <div class="car-top">
                 <span class="plate"><%= m.plat_nomor %></span>
                 <% if(m.is_booked || m.status === 'DIPINJAM') { %>
-                    <span class="badge badge-busy">● Booked</span>
+                    <span class="badge badge-busy">Booked</span>
                 <% } else if(m.status === 'FREE') { %>
-                    <span class="badge badge-free">● FREE</span>
+                    <span class="badge badge-free">FREE</span>
                 <% } else { %>
-                    <span class="badge badge-maint">● MAINTENANCE</span>
+                    <span class="badge badge-maint">MAINTENANCE</span>
                 <% } %>
             </div>
 
