@@ -109,7 +109,7 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman
+// Pegawai: Ajukan Peminjaman (Batas Booking Maksimal H+7 dari Hari Ini)
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
@@ -121,6 +121,7 @@ router.post('/pinjam', async (req, res) => {
         const start = new Date(tgl_mulai);
         const end = new Date(tgl_selesai);
 
+        // Batas maksimal booking (H+7 dari hari ini)
         const maxAllowedDate = new Date(today);
         maxAllowedDate.setDate(maxAllowedDate.getDate() + 7);
         maxAllowedDate.setHours(23, 59, 59, 999);
@@ -128,12 +129,13 @@ router.post('/pinjam', async (req, res) => {
         if (start > maxAllowedDate || end > maxAllowedDate) {
             return res.status(400).send(`
                 <script>
-                    alert('Gagal! Tanggal pemakaian mobil maksimal 7 hari dari hari booking/pemesanan.');
+                    alert('Gagal! Pilihan tanggal booking maksimal hingga 7 hari ke depan dari hari ini.');
                     window.location.href = '/dashboard';
                 </script>
             `);
         }
 
+        // Cek Bentrok Jadwal dengan Peminjaman Aktif (APPROVED)
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 

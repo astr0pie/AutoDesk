@@ -163,7 +163,7 @@
 
             <div class="notice">
                 <p class="font-bold mb-1">Catatan Pemilih Tanggal</p>
-                <p>Tanggal berlatar <strong>kuning</strong> menunjukkan mobil sudah ter-booking. Pemilihan tanggal maksimal <strong>7 hari</strong> dari hari ini.</p>
+                <p>Pilihan tanggal booking maksimal hingga <strong>7 hari ke depan</strong> dari hari ini. Tanggal berlatar <strong>kuning</strong> menunjukkan mobil sudah ter-booking.</p>
             </div>
 
             <div>
@@ -365,6 +365,7 @@ function openBookingModal(mobilId, merk, plat) {
             if (fpMulai) fpMulai.destroy();
             if (fpSelesai) fpSelesai.destroy();
 
+            // Batas maksimal pilihan booking H+7 dari hari ini
             const maxDateLimit = new Date();
             maxDateLimit.setDate(maxDateLimit.getDate() + 7);
 
