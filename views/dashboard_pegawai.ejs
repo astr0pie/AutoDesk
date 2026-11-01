@@ -163,7 +163,7 @@
 
             <div class="notice">
                 <p class="font-bold mb-1">Catatan Pemilih Tanggal</p>
-                <p>Pilihan tanggal booking maksimal hingga <strong>7 hari ke depan</strong> dari hari ini. Tanggal berlatar <strong>kuning</strong> menunjukkan mobil sudah ter-booking.</p>
+                <p>Tanggal mulai booking maksimal <strong>7 hari ke depan</strong> dari hari ini. Tanggal berlatar <strong>kuning</strong> menunjukkan mobil sudah ter-booking.</p>
             </div>
 
             <div>
@@ -365,15 +365,14 @@ function openBookingModal(mobilId, merk, plat) {
             if (fpMulai) fpMulai.destroy();
             if (fpSelesai) fpSelesai.destroy();
 
-            // Batas maksimal pilihan booking H+7 dari hari ini
-            const maxDateLimit = new Date();
-            maxDateLimit.setDate(maxDateLimit.getDate() + 7);
+            // Batas maksimal Tanggal Mulai booking (H+7 dari hari ini)
+            const maxStartDateLimit = new Date();
+            maxStartDateLimit.setDate(maxStartDateLimit.getDate() + 7);
 
-            const flatpickrConfig = {
+            const baseConfig = {
                 enableTime: true,
                 dateFormat: "Y-m-d H:i",
                 minDate: "today",
-                maxDate: maxDateLimit,
                 disable: disableRanges,
                 onDayCreate: function(dObj, dStr, fp, dayElem) {
                     const dayDate = dayElem.dateObj;
@@ -390,8 +389,21 @@ function openBookingModal(mobilId, merk, plat) {
                 }
             };
 
-            fpMulai = flatpickr("#tgl_mulai_picker", flatpickrConfig);
-            fpSelesai = flatpickr("#tgl_selesai_picker", flatpickrConfig);
+            // 1. Tanggal Mulai: Dibatasi maxDate H+7
+            fpMulai = flatpickr("#tgl_mulai_picker", {
+                ...baseConfig,
+                maxDate: maxStartDateLimit,
+                onChange: function(selectedDates, dateStr) {
+                    if (selectedDates.length > 0) {
+                        fpSelesai.set("minDate", selectedDates[0]);
+                    }
+                }
+            });
+
+            // 2. Tanggal Selesai: BEBAS (Tanpa maxDate)
+            fpSelesai = flatpickr("#tgl_selesai_picker", {
+                ...baseConfig
+            });
         });
 
     document.body.classList.add('overflow-hidden');

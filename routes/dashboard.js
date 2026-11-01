@@ -109,7 +109,7 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman (Batas Booking Maksimal H+7 dari Hari Ini)
+// Pegawai: Ajukan Peminjaman (Tanggal Mulai Maksimal H+7, Tanggal Selesai Bebas)
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
@@ -121,15 +121,24 @@ router.post('/pinjam', async (req, res) => {
         const start = new Date(tgl_mulai);
         const end = new Date(tgl_selesai);
 
-        // Batas maksimal booking (H+7 dari hari ini)
-        const maxAllowedDate = new Date(today);
-        maxAllowedDate.setDate(maxAllowedDate.getDate() + 7);
-        maxAllowedDate.setHours(23, 59, 59, 999);
+        // Batas maksimal booking HANYA untuk tanggal mulai (H+7 dari hari ini)
+        const maxAllowedStartDate = new Date(today);
+        maxAllowedStartDate.setDate(maxAllowedStartDate.getDate() + 7);
+        maxAllowedStartDate.setHours(23, 59, 59, 999);
 
-        if (start > maxAllowedDate || end > maxAllowedDate) {
+        if (start > maxAllowedStartDate) {
             return res.status(400).send(`
                 <script>
-                    alert('Gagal! Pilihan tanggal booking maksimal hingga 7 hari ke depan dari hari ini.');
+                    alert('Gagal! Tanggal mulai peminjaman maksimal H+7 dari hari ini.');
+                    window.location.href = '/dashboard';
+                </script>
+            `);
+        }
+
+        if (end < start) {
+            return res.status(400).send(`
+                <script>
+                    alert('Gagal! Tanggal selesai tidak boleh lebih awal dari tanggal mulai.');
                     window.location.href = '/dashboard';
                 </script>
             `);

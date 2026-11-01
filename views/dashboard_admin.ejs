@@ -332,7 +332,7 @@
         </div>
 
         <div class="space-y-4">
-            <!-- Tombol Cek Tanggal Ter-booking (Tulisan Hitam & Berfungsi sebagai Trigger) -->
+            <!-- Tombol Cek Tanggal Ter-booking -->
             <div>
                 <button id="adminCalendarBtn" type="button" class="w-full py-2.5 px-4 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 font-bold text-xs hover:bg-slate-200 transition text-left flex items-center justify-between">
                     <span>📅 Melihat Tanggal Ter-booking</span>
@@ -425,6 +425,8 @@ function openAdminJadwalModal(mobilId, merk, plat) {
             });
 
             if (fpAdmin) fpAdmin.destroy();
+
+            // Pratinjau Kalender Admin: Bebas tanpa batasan maxDate
             fpAdmin = flatpickr("#adminCalendarView", {
                 inline: false,
                 dateFormat: "Y-m-d",
