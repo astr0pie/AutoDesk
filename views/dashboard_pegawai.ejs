@@ -51,19 +51,13 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <h2 id="armadaTitle" class="section-title">Status Kendaraan Operasional<span class="count-chip" id="carCountChip"><%= mobilList.length %> unit</span></h2>
         
-        <!-- Filter Cari & Dropdown Plat Nomor -->
+        <!-- Filter Dropdown Plat Nomor Only -->
         <% if (mobilList.length > 0) { %>
-        <div class="flex flex-wrap items-center gap-2">
-            <!-- Search Input -->
-            <div class="relative min-w-[180px] sm:w-56">
-                <input type="text" id="searchPlatInput" placeholder="Cari Plat Nomor..." class="field field-sm w-full pl-8" oninput="filterArmadaByPlat()">
-                <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
-            </div>
-            <!-- Dropdown Select -->
-            <select id="selectPlatDropdown" class="field field-sm min-w-[150px]" onchange="selectPlatFilter(this.value)">
-                <option value="">-- Semua Plat --</option>
+        <div>
+            <select id="selectPlatDropdown" class="field field-sm min-w-[180px]" onchange="filterArmadaByDropdown(this.value)">
+                <option value="">-- Pilih Plat Nomor --</option>
                 <% mobilList.forEach(m => { %>
-                    <option value="<%= m.plat_nomor %>"><%= m.plat_nomor %> (<%= m.merk_tipe %>)</option>
+                    <option value="<%= m.plat_nomor.toLowerCase() %>"><%= m.plat_nomor %> (<%= m.merk_tipe %>)</option>
                 <% }) %>
             </select>
         </div>
@@ -282,9 +276,8 @@ function esc(s) {
     });
 }
 
-// Fungsi Logika Filter Frontend Plat Nomor
-function filterArmadaByPlat() {
-    const inputVal = document.getElementById('searchPlatInput').value.trim().toLowerCase();
+// Logika Filter Dropdown Frontend Pegawai
+function filterArmadaByDropdown(selectedVal) {
     const carItems = document.querySelectorAll('.car-item');
     const noMsg = document.getElementById('noCarFoundMsg');
     const countChip = document.getElementById('carCountChip');
@@ -293,7 +286,7 @@ function filterArmadaByPlat() {
 
     carItems.forEach(item => {
         const plat = item.getAttribute('data-plat');
-        if (plat.includes(inputVal)) {
+        if (!selectedVal || plat === selectedVal) {
             item.style.display = '';
             visibleCount++;
         } else {
@@ -309,14 +302,6 @@ function filterArmadaByPlat() {
         } else {
             noMsg.classList.add('hidden');
         }
-    }
-}
-
-function selectPlatFilter(val) {
-    const searchInput = document.getElementById('searchPlatInput');
-    if (searchInput) {
-        searchInput.value = val;
-        filterArmadaByPlat();
     }
 }
 
