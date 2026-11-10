@@ -31,16 +31,13 @@
   .flatpickr-day.today:not(.selected) {
     border-color: #FACC15 !important;
   }
+  /* Perbaikan CSS Kalender Rapih & Sejajar */
   .flatpickr-day.booked-date {
     background-color: #fef08a !important;
     color: #854d0e !important;
     font-weight: 700 !important;
     border-radius: 9999px !important;
     border: 1px solid #fde047 !important;
-    max-width: 28px !important;
-    height: 28px !important;
-    line-height: 26px !important;
-    margin: 2px auto !important;
   }
 </style>
 
@@ -221,7 +218,7 @@
                 <tr>
                     <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
                     <td><%= p.tujuan_peminjaman %></td>
-                    <td class="whitespace-nowrap"><%= p.lama_pinjam_hari %> Hari</td>
+                    <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
                     <td class="whitespace-nowrap">
                         <% if(p.status_peminjaman === 'APPROVED') { %>
                             <span class="badge badge-free">APPROVED</span>
@@ -289,10 +286,8 @@ function openDetailModal(mobilId, merk, plat) {
                 onDayCreate: function(dObj, dStr, fp, dayElem) {
                     const dayDate = dayElem.dateObj;
                     disableRanges.forEach(range => {
-                        const start = new Date(range.from);
-                        const end = new Date(range.to);
-                        start.setHours(0,0,0,0);
-                        end.setHours(23,59,59,999);
+                        const start = new Date(range.from + 'T00:00:00');
+                        const end = new Date(range.to + 'T23:59:59');
                         if (dayDate >= start && dayDate <= end) {
                             dayElem.classList.add("booked-date");
                             dayElem.title = "Sudah ter-booking";
@@ -311,8 +306,8 @@ function openDetailModal(mobilId, merk, plat) {
             }
             let html = '';
             data.forEach(item => {
-                const tglStart = new Date(item.tgl_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const tglEnd = new Date(item.tgl_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const tglStart = item.tgl_mulai_str || item.tgl_mulai.split('T')[0];
+                const tglEnd = item.tgl_selesai_str || item.tgl_selesai.split('T')[0];
 
                 html += `
                     <div class="sched-item">
@@ -377,10 +372,8 @@ function openBookingModal(mobilId, merk, plat) {
                 onDayCreate: function(dObj, dStr, fp, dayElem) {
                     const dayDate = dayElem.dateObj;
                     disableRanges.forEach(range => {
-                        const start = new Date(range.from);
-                        const end = new Date(range.to);
-                        start.setHours(0,0,0,0);
-                        end.setHours(23,59,59,999);
+                        const start = new Date(range.from + 'T00:00:00');
+                        const end = new Date(range.to + 'T23:59:59');
                         if (dayDate >= start && dayDate <= end) {
                             dayElem.classList.add("booked-date");
                             dayElem.title = "Sudah ter-booking";

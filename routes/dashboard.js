@@ -44,7 +44,10 @@ router.get('/', async (req, res) => {
             }
 
             const peminjamanRes = await db.query(`
-                SELECT p.*, u.nama as nama_user, u.username, u.nama_seksi, m.merk_tipe, m.plat_nomor 
+                SELECT p.id, p.user_id, p.mobil_id, p.tujuan_peminjaman, p.lama_pinjam_hari, p.status_peminjaman,
+                       TO_CHAR(p.tgl_mulai, 'DD/MM/YYYY') as tgl_mulai_fmt,
+                       TO_CHAR(p.tgl_selesai, 'DD/MM/YYYY') as tgl_selesai_fmt,
+                       u.nama as nama_user, u.username, u.nama_seksi, m.merk_tipe, m.plat_nomor 
                 FROM peminjaman p
                 JOIN users u ON p.user_id = u.id
                 JOIN mobil m ON p.mobil_id = m.id
@@ -74,7 +77,10 @@ router.get('/', async (req, res) => {
             }
 
             const myPinjamRes = await db.query(`
-                SELECT p.*, m.merk_tipe, m.plat_nomor 
+                SELECT p.id, p.user_id, p.mobil_id, p.tujuan_peminjaman, p.lama_pinjam_hari, p.status_peminjaman,
+                       TO_CHAR(p.tgl_mulai, 'DD/MM/YYYY') as tgl_mulai_fmt,
+                       TO_CHAR(p.tgl_selesai, 'DD/MM/YYYY') as tgl_selesai_fmt,
+                       m.merk_tipe, m.plat_nomor 
                 FROM peminjaman p
                 JOIN mobil m ON p.mobil_id = m.id
                 ${userWhereClause}
@@ -90,12 +96,17 @@ router.get('/', async (req, res) => {
     }
 });
 
-// API Endpoint: Get Daftar Jadwal Ter-booking
+// API Endpoint: Get Daftar Jadwal Ter-booking (Format String Konsisten)
 router.get('/mobil/:id/jadwal', async (req, res) => {
     try {
         const { id } = req.params;
         const result = await db.query(`
-            SELECT p.id, p.tgl_mulai, p.tgl_selesai, p.tujuan_peminjaman, p.status_peminjaman,
+            SELECT p.id, 
+                   TO_CHAR(p.tgl_mulai, 'YYYY-MM-DD"T"HH24:MI:SS') as tgl_mulai, 
+                   TO_CHAR(p.tgl_selesai, 'YYYY-MM-DD"T"HH24:MI:SS') as tgl_selesai,
+                   TO_CHAR(p.tgl_mulai, 'DD/MM/YYYY') as tgl_mulai_str,
+                   TO_CHAR(p.tgl_selesai, 'DD/MM/YYYY') as tgl_selesai_str,
+                   p.tujuan_peminjaman, p.status_peminjaman,
                    u.nama as nama_peminjam, u.nama_seksi
             FROM peminjaman p
             JOIN users u ON p.user_id = u.id
