@@ -80,7 +80,7 @@
         <% if (mobilList.length > 0) { %>
         <div>
             <select id="adminSelectPlatDropdown" class="field field-sm min-w-[180px]" onchange="filterAdminArmadaByDropdown(this.value)">
-                <option value="">-- Pilih Plat Nomor --</option>
+                <option value="">Pilih Plat Nomor</option>
                 <% mobilList.forEach(m => { %>
                     <option value="<%= m.plat_nomor.toLowerCase() %>"><%= m.plat_nomor %> (<%= m.merk_tipe %>)</option>
                 <% }) %>
