@@ -89,7 +89,7 @@ router.post('/register', async (req, res) => {
         // 4. Validasi Role Admin
         let userRole = 'pegawai';
         if (role === 'admin') {
-            if (admin_code !== 'ADMINKPP') {
+            if (admin_code !== 'ADM1998') {
                 return res.render('auth/register', { 
                     error: 'Kode Admin tidak valid!', 
                     formData, 
