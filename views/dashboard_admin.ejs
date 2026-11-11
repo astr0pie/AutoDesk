@@ -21,7 +21,6 @@
     font-family: inherit !important;
     font-weight: 700 !important;
   }
-  /* Perbaikan CSS Kalender Rapih & Sejajar */
   .flatpickr-day.booked-date {
     background-color: #fef08a !important;
     color: #854d0e !important;
@@ -71,32 +70,17 @@
     </form>
 </section>
 
-<!-- Daftar Armada Mobil -->
+<!-- Daftar Armada Mobil (Tanpa Dropdown Header) -->
 <section class="mb-10" aria-labelledby="kelolaTitle">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <h2 id="kelolaTitle" class="section-title">Kelola Daftar Mobil<span class="count-chip" id="adminCarCountChip"><%= mobilList.length %> unit</span></h2>
-
-        <!-- Filter Dropdown Plat Nomor Only -->
-        <% if (mobilList.length > 0) { %>
-        <div>
-            <select id="adminSelectPlatDropdown" class="field field-sm min-w-[180px]" onchange="filterAdminArmadaByDropdown(this.value)">
-                <option value="">Pilih Plat Nomor</option>
-                <% mobilList.forEach(m => { %>
-                    <option value="<%= m.plat_nomor.toLowerCase() %>"><%= m.plat_nomor %> (<%= m.merk_tipe %>)</option>
-                <% }) %>
-            </select>
-        </div>
-        <% } %>
-    </div>
+    <h2 id="kelolaTitle" class="section-title mb-4">Kelola Daftar Mobil<span class="count-chip"><%= mobilList.length %> unit</span></h2>
 
     <% if (mobilList.length === 0) { %>
         <div class="card p-8 text-center text-sm text-slate-500">Belum ada unit mobil. Tambahkan unit pertama lewat form di atas.</div>
     <% } %>
 
-    <!-- Grid Mobil -->
-    <div id="adminArmadaContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <% mobilList.forEach(m => { %>
-        <article class="car-card admin-car-item" data-plat="<%= m.plat_nomor.toLowerCase() %>">
+        <article class="car-card">
             <div class="car-top">
                 <span class="plate"><%= m.plat_nomor %></span>
                 <% if(m.is_booked || m.status === 'DIPINJAM') { %>
@@ -143,9 +127,9 @@
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
                         Edit
                     </button>
-                    <form action="/dashboard/mobil/hapus" method="POST" data-confirm="Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?" onsubmit="return confirm(this.dataset.confirm);">
+                    <form action="/dashboard" method="POST" data-confirm="Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?" onsubmit="return confirm(this.dataset.confirm);">
                         <input type="hidden" name="mobil_id" value="<%= m.id %>">
-                        <button type="submit" class="btn btn-danger btn-block">
+                        <button type="submit" class="btn btn-danger btn-block" formdataaction="/dashboard/mobil/hapus">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
                             Hapus
                         </button>
@@ -155,25 +139,21 @@
         </article>
         <% }) %>
     </div>
-
-    <!-- Pesan jika hasil pencarian tidak ditemukan -->
-    <div id="adminNoCarFoundMsg" class="card p-8 text-center text-sm text-slate-500 hidden mt-4">
-        Tidak ada mobil dengan plat nomor tersebut.
-    </div>
 </section>
 
-<!-- Laporan Log Peminjaman Berdasarkan Kategori & Filter -->
+<!-- Laporan Log Peminjaman Berdasarkan Kategori & Filter (2 Pilihan: Bulan & No Kendaraan) -->
 <section class="card p-4 sm:p-6" aria-labelledby="logTitle">
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
         <div>
             <h2 id="logTitle" class="section-title">Log Peminjaman Pegawai</h2>
             <p class="text-xs text-slate-500 mt-1">
-                <%= showAll ? 'Menampilkan seluruh riwayat' : 'Menampilkan transaksi 1 bulan terakhir' %>
+                <%= showAll ? 'Menampilkan seluruh riwayat' : 'Menampilkan transaksi terfilter (urut tanggal termuda)' %>
             </p>
         </div>
 
-        <!-- Filter Bulan & Opsi Tampilkan Semua -->
+        <!-- Form Filter 2 Opsi: Bulan & No. Kendaraan -->
         <form action="/dashboard" method="GET" class="flex flex-wrap items-center gap-2">
+            <!-- 1. Filter Bulan & Tahun -->
             <select name="bulan" aria-label="Filter bulan" class="field field-sm" style="width:auto;">
                 <option value=""> Filter Bulan </option>
                 <% ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].forEach((namaBulan, i) => { %>
@@ -181,6 +161,15 @@
                 <% }) %>
             </select>
             <input type="number" name="tahun" aria-label="Tahun" value="<%= selectedTahun %>" class="field field-sm field-year">
+
+            <!-- 2. Filter No Kendaraan / Mobil -->
+            <select name="mobil_id" aria-label="Filter Kendaraan" class="field field-sm" style="width:auto;">
+                <option value=""> Filter No. Kendaraan </option>
+                <% mobilList.forEach(m => { %>
+                <option value="<%= m.id %>" <%= String(selectedMobilId) === String(m.id) ? 'selected' : '' %>><%= m.plat_nomor %> - <%= m.merk_tipe %></option>
+                <% }) %>
+            </select>
+
             <button type="submit" class="btn btn-primary btn-sm">Filter</button>
 
             <% if(showAll) { %>
@@ -379,36 +368,7 @@ function esc(s) {
     });
 }
 
-// Logika Filter Dropdown Frontend Admin
-function filterAdminArmadaByDropdown(selectedVal) {
-    const carItems = document.querySelectorAll('.admin-car-item');
-    const noMsg = document.getElementById('adminNoCarFoundMsg');
-    const countChip = document.getElementById('adminCarCountChip');
-    
-    let visibleCount = 0;
-
-    carItems.forEach(item => {
-        const plat = item.getAttribute('data-plat');
-        if (!selectedVal || plat === selectedVal) {
-            item.style.display = '';
-            visibleCount++;
-        } else {
-            item.style.display = 'none';
-        }
-    });
-
-    if (countChip) countChip.innerText = `${visibleCount} unit`;
-
-    if (noMsg) {
-        if (visibleCount === 0 && carItems.length > 0) {
-            noMsg.classList.remove('hidden');
-        } else {
-            noMsg.classList.add('hidden');
-        }
-    }
-}
-
-const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
+const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
 
 function switchTab(category) {
     const categories = ['approved', 'finished'];

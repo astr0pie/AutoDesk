@@ -13,7 +13,7 @@ router.use(authMiddleware);
 // Main Dashboard
 router.get('/', async (req, res) => {
     try {
-        const { show_all, bulan, tahun } = req.query;
+        const { show_all, bulan, tahun, mobil_id } = req.query;
 
         // Query data mobil + deteksi apakah sedang dipinjam/booked hari ini
         const mobilRes = await db.query(`
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
             let whereClause = "WHERE 1=1";
             let queryParams = [];
 
-            if (show_all !== 'true' && !bulan) {
+            if (show_all !== 'true' && !bulan && !mobil_id) {
                 whereClause += " AND p.tgl_mulai >= NOW() - INTERVAL '1 month'";
             }
 
@@ -43,6 +43,12 @@ router.get('/', async (req, res) => {
                 whereClause += ` AND EXTRACT(MONTH FROM p.tgl_mulai) = $${queryParams.length - 1} AND EXTRACT(YEAR FROM p.tgl_mulai) = $${queryParams.length}`;
             }
 
+            if (mobil_id) {
+                queryParams.push(parseInt(mobil_id));
+                whereClause += ` AND p.mobil_id = $${queryParams.length}`;
+            }
+
+            // Hasil filter diurutkan dari tanggal paling awal / termuda (ASC)
             const peminjamanRes = await db.query(`
                 SELECT p.id, p.user_id, p.mobil_id, p.tujuan_peminjaman, p.lama_pinjam_hari, p.status_peminjaman,
                        TO_CHAR(p.tgl_mulai, 'DD/MM/YYYY') as tgl_mulai_fmt,
@@ -52,7 +58,7 @@ router.get('/', async (req, res) => {
                 JOIN users u ON p.user_id = u.id
                 JOIN mobil m ON p.mobil_id = m.id
                 ${whereClause}
-                ORDER BY p.id DESC
+                ORDER BY p.tgl_mulai ASC
             `, queryParams);
 
             const allLogs = peminjamanRes.rows;
@@ -66,7 +72,8 @@ router.get('/', async (req, res) => {
                 finishedList,
                 showAll: show_all === 'true',
                 selectedBulan: bulan || '',
-                selectedTahun: tahun || new Date().getFullYear()
+                selectedTahun: tahun || new Date().getFullYear(),
+                selectedMobilId: mobil_id || ''
             });
         } else {
             let userWhereClause = "WHERE p.user_id = $1";
@@ -84,7 +91,7 @@ router.get('/', async (req, res) => {
                 FROM peminjaman p
                 JOIN mobil m ON p.mobil_id = m.id
                 ${userWhereClause}
-                ORDER BY p.id DESC
+                ORDER BY p.tgl_mulai ASC
             `, userQueryParams);
 
             const myPinjam = myPinjamRes.rows;
@@ -96,7 +103,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// API Endpoint: Get Daftar Jadwal Ter-booking (Format String Konsisten)
+// API Endpoint: Get Daftar Jadwal Ter-booking
 router.get('/mobil/:id/jadwal', async (req, res) => {
     try {
         const { id } = req.params;
@@ -120,7 +127,7 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
-// Pegawai: Ajukan Peminjaman (Tanggal Mulai Maksimal H+7, Tanggal Selesai Bebas)
+// Pegawai: Ajukan Peminjaman
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
@@ -132,7 +139,6 @@ router.post('/pinjam', async (req, res) => {
         const start = new Date(tgl_mulai);
         const end = new Date(tgl_selesai);
 
-        // Batas maksimal booking HANYA untuk tanggal mulai (H+7 dari hari ini)
         const maxAllowedStartDate = new Date(today);
         maxAllowedStartDate.setDate(maxAllowedStartDate.getDate() + 7);
         maxAllowedStartDate.setHours(23, 59, 59, 999);
@@ -155,7 +161,6 @@ router.post('/pinjam', async (req, res) => {
             `);
         }
 
-        // Cek Bentrok Jadwal dengan Peminjaman Aktif (APPROVED)
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 

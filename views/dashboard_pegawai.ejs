@@ -31,7 +31,6 @@
   .flatpickr-day.today:not(.selected) {
     border-color: #FACC15 !important;
   }
-  /* Perbaikan CSS Kalender Rapih & Sejajar */
   .flatpickr-day.booked-date {
     background-color: #fef08a !important;
     color: #854d0e !important;
@@ -46,32 +45,17 @@
     <p class="page-sub">Pilih unit kendaraan dinas dan atur jadwal peminjaman Anda.</p>
 </div>
 
-<!-- Daftar Mobil -->
+<!-- Daftar Mobil (Tanpa Dropdown Header) -->
 <section class="mb-10" aria-labelledby="armadaTitle">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <h2 id="armadaTitle" class="section-title">Status Kendaraan Operasional<span class="count-chip" id="carCountChip"><%= mobilList.length %> unit</span></h2>
-        
-        <!-- Filter Dropdown Plat Nomor Only -->
-        <% if (mobilList.length > 0) { %>
-        <div>
-            <select id="selectPlatDropdown" class="field field-sm min-w-[180px]" onchange="filterArmadaByDropdown(this.value)">
-                <option value="">Pilih Plat Nomor</option>
-                <% mobilList.forEach(m => { %>
-                    <option value="<%= m.plat_nomor.toLowerCase() %>"><%= m.plat_nomor %> (<%= m.merk_tipe %>)</option>
-                <% }) %>
-            </select>
-        </div>
-        <% } %>
-    </div>
+    <h2 id="armadaTitle" class="section-title mb-4">Status Kendaraan Operasional<span class="count-chip"><%= mobilList.length %> unit</span></h2>
 
     <% if (mobilList.length === 0) { %>
         <div class="card p-8 text-center text-sm text-slate-500">Belum ada unit kendaraan yang terdaftar.</div>
     <% } %>
 
-    <!-- Container Grid Mobil -->
-    <div id="armadaContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <% mobilList.forEach(m => { %>
-        <article class="car-card car-item" data-plat="<%= m.plat_nomor.toLowerCase() %>">
+        <article class="car-card">
             <div class="car-top">
                 <span class="plate"><%= m.plat_nomor %></span>
                 <% if(m.is_booked || m.status === 'DIPINJAM') { %>
@@ -112,11 +96,6 @@
             </div>
         </article>
         <% }) %>
-    </div>
-
-    <!-- Pesan jika hasil pencarian tidak ditemukan -->
-    <div id="noCarFoundMsg" class="card p-8 text-center text-sm text-slate-500 hidden mt-4">
-        Tidak ada mobil dengan plat nomor tersebut.
     </div>
 </section>
 
@@ -276,36 +255,7 @@ function esc(s) {
     });
 }
 
-// Logika Filter Dropdown Frontend Pegawai
-function filterArmadaByDropdown(selectedVal) {
-    const carItems = document.querySelectorAll('.car-item');
-    const noMsg = document.getElementById('noCarFoundMsg');
-    const countChip = document.getElementById('carCountChip');
-    
-    let visibleCount = 0;
-
-    carItems.forEach(item => {
-        const plat = item.getAttribute('data-plat');
-        if (!selectedVal || plat === selectedVal) {
-            item.style.display = '';
-            visibleCount++;
-        } else {
-            item.style.display = 'none';
-        }
-    });
-
-    if (countChip) countChip.innerText = `${visibleCount} unit`;
-
-    if (noMsg) {
-        if (visibleCount === 0 && carItems.length > 0) {
-            noMsg.classList.remove('hidden');
-        } else {
-            noMsg.classList.add('hidden');
-        }
-    }
-}
-
-const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
+const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
 
 function openDetailModal(mobilId, merk, plat) {
     activeMobilForBooking = { id: mobilId, merk: merk, plat: plat };
