@@ -133,6 +133,26 @@ router.post('/pinjam', async (req, res) => {
     const userId = req.session.user.id;
 
     try {
+        // 1. Cek Status Mobil (Kunci jika sedang MAINTENANCE)
+        const mobilCheck = await db.query('SELECT status, merk_tipe, plat_nomor FROM mobil WHERE id = $1', [mobil_id]);
+        if (mobilCheck.rows.length === 0) {
+            return res.status(404).send(`
+                <script>
+                    alert('Gagal! Unit mobil tidak ditemukan.');
+                    window.location.href = '/dashboard';
+                </script>
+            `);
+        }
+
+        if (mobilCheck.rows[0].status === 'MAINTENANCE') {
+            return res.status(400).send(`
+                <script>
+                    alert('Gagal! Mobil ${mobilCheck.rows[0].merk_tipe} (${mobilCheck.rows[0].plat_nomor}) sedang dalam status MAINTENANCE dan tidak dapat dipinjam sampai admin mengubah statusnya menjadi FREE.');
+                    window.location.href = '/dashboard';
+                </script>
+            `);
+        }
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -161,6 +181,7 @@ router.post('/pinjam', async (req, res) => {
             `);
         }
 
+        // 2. Cek Bentrok Jadwal Unit Mobil yang Sama
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 
@@ -171,10 +192,36 @@ router.post('/pinjam', async (req, res) => {
         if (overlapCheck.rows.length > 0) {
             return res.status(400).send(`
                 <script>
-                    alert('Gagal! Tanggal yang Anda pilih sudah ter-booking oleh pegawai lain.');
+                    alert('Gagal! Tanggal yang Anda pilih pada mobil ini sudah ter-booking oleh pegawai lain.');
                     window.location.href = '/dashboard';
                 </script>
             `);
+        }
+
+        // 3. Cek Bentrok Tanggal dari Seksi / Unit yang Sama (Kunci jika sudah ada peminjaman dari seksi yang sama di tanggal beririsan)
+        const userRes = await db.query('SELECT nama_seksi FROM users WHERE id = $1', [userId]);
+        const namaSeksi = userRes.rows[0]?.nama_seksi ? userRes.rows[0].nama_seksi.trim() : '';
+
+        if (namaSeksi && namaSeksi !== '-') {
+            const seksiOverlapCheck = await db.query(`
+                SELECT p.id, u.nama as nama_peminjam, m.merk_tipe, m.plat_nomor
+                FROM peminjaman p
+                JOIN users u ON p.user_id = u.id
+                JOIN mobil m ON p.mobil_id = m.id
+                WHERE LOWER(TRIM(u.nama_seksi)) = LOWER($1)
+                  AND p.status_peminjaman = 'APPROVED'
+                  AND (p.tgl_mulai <= $3 AND p.tgl_selesai >= $2)
+            `, [namaSeksi, tgl_mulai, tgl_selesai]);
+
+            if (seksiOverlapCheck.rows.length > 0) {
+                const existing = seksiOverlapCheck.rows[0];
+                return res.status(400).send(`
+                    <script>
+                        alert('Gagal! Seksi ${namaSeksi} sudah memiliki jadwal peminjaman aktif pada tanggal tersebut (${existing.merk_tipe} - ${existing.plat_nomor} atas nama ${existing.nama_peminjam}).');
+                        window.location.href = '/dashboard';
+                    </script>
+                `);
+            }
         }
 
         const diffTime = Math.abs(end - start);
