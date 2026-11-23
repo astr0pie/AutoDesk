@@ -10,18 +10,18 @@
     <p class="page-sub">Pantau jadwal seluruh kendaraan dinas, kelola armada, dan batalkan peminjaman jika diperlukan.</p>
 </div>
 
-<!-- Tabel Jadwal Mingguan (Mobil x 7 Hari) -->
+<!-- Tabel Jadwal (Mobil x 14 Hari) -->
 <section id="jadwal" class="card p-4 sm:p-6 mb-8" aria-labelledby="jadwalTitle">
     <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
         <div>
-            <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas</h2>
-            <p class="text-xs text-slate-500 mt-1">Klik kotak peminjaman untuk melihat rincian peminjam. Klik nama mobil untuk membuka kalender unit.</p>
+            <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas Operasional</h2>
+            <p class="text-xs text-slate-500 mt-1">Geser tabel ke samping untuk melihat tanggal selanjutnya. Klik kotak peminjaman atau nama mobil untuk melihat rincian.</p>
         </div>
         <div class="week-nav">
-            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 7 Hari Sebelumnya</a>
+            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 14 Hari Sebelumnya</a>
             <span class="week-label"><%= matrix.rangeLabel %></span>
             <a class="btn <%= matrix.isCurrentWeek ? 'btn-soft' : 'btn-ghost' %> btn-sm" href="/dashboard#jadwal">Hari Ini</a>
-            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.nextIso %>#jadwal">7 Hari Berikutnya <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></a>
+            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.nextIso %>#jadwal">14 Hari Berikutnya <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></a>
         </div>
     </div>
 
@@ -35,7 +35,7 @@
         <table class="mx">
             <colgroup>
                 <col class="mx-col-unit">
-                <% matrix.days.forEach(() => { %><col><% }) %>
+                <% matrix.days.forEach(() => { %><col class="mx-col-day"><% }) %>
             </colgroup>
             <thead>
                 <tr>
@@ -47,7 +47,7 @@
             </thead>
             <tbody>
                 <% if (matrix.rows.length === 0) { %>
-                    <tr><td colspan="8" class="t-empty" style="padding:2rem 1rem;text-align:center;color:var(--faint);">Belum ada unit kendaraan yang terdaftar.</td></tr>
+                    <tr><td colspan="<%= matrix.days.length + 1 %>" class="t-empty" style="padding:2rem 1rem;text-align:center;color:var(--faint);">Belum ada unit kendaraan yang terdaftar.</td></tr>
                 <% } %>
                 <% matrix.rows.forEach(r => { const m = r.mobil; %>
                 <tr>
@@ -68,7 +68,7 @@
                     </th>
                     <% r.cells.forEach(c => { %>
                         <% if (c.type === 'maint') { %>
-                            <td colspan="7" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - unit terkunci sampai admin mengubah status menjadi FREE</div></td>
+                            <td colspan="<%= c.span %>" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - unit terkunci sampai admin mengubah status menjadi FREE</div></td>
                         <% } else if (c.type === 'booked') { %>
                             <td colspan="<%= c.span %>" class="day">
                                 <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
@@ -415,7 +415,6 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 function dayIso(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 function inRanges(iso, ranges) { return ranges.some(function (r) { return iso >= r.from && iso <= r.to; }); }
 function toRange(item) { return { from: item.tgl_mulai.split('T')[0], to: item.tgl_selesai.split('T')[0] }; }
-function fmtLong(d) { return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); }
 
 function openModal(id) {
     document.body.classList.add('overflow-hidden');

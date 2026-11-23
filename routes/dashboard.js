@@ -14,6 +14,7 @@ router.use(authMiddleware);
 // Helper tanggal (semua dihitung dengan zona waktu WIB / Asia/Jakarta
 // supaya konsisten walau server Vercel berjalan di UTC)
 // =====================================================================
+const MATRIX_DAYS = 14; // Jumlah hari yang ditampilkan dalam 1 halaman tabel matriks
 const DOW_ID = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const MON_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -41,10 +42,10 @@ const alertBack = (res, status, message) => {
     return res.status(status).send(`<script>alert(${safe}); window.location.href = '/dashboard';</script>`);
 };
 
-// Susun data tabel jadwal (mobil x 7 hari) untuk dirender di view
+// Susun data tabel jadwal (mobil x MATRIX_DAYS hari) untuk dirender di view
 function buildMatrix({ mobilList, bookings, startIso, todayIso, maxStartIso, userId, role }) {
     const days = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < MATRIX_DAYS; i++) {
         const iso = addDays(startIso, i);
         const dow = parseIso(iso).getUTCDay();
         days.push({
@@ -61,18 +62,18 @@ function buildMatrix({ mobilList, bookings, startIso, todayIso, maxStartIso, use
     const rows = mobilList.map((m) => {
         const cells = [];
         if (m.status === 'MAINTENANCE') {
-            cells.push({ type: 'maint', span: 7 });
+            cells.push({ type: 'maint', span: MATRIX_DAYS });
             return { mobil: m, cells };
         }
 
         const mine = bookings.filter((b) => String(b.mobil_id) === String(m.id));
         let i = 0;
-        while (i < 7) {
+        while (i < MATRIX_DAYS) {
             const iso = days[i].iso;
             const b = mine.find((x) => iso >= x.d_mulai && iso <= x.d_selesai);
             if (b) {
                 let span = 1;
-                while (i + span < 7 && days[i + span].iso <= b.d_selesai) span++;
+                while (i + span < MATRIX_DAYS && days[i + span].iso <= b.d_selesai) span++;
                 cells.push({
                     type: 'booked',
                     span,
@@ -97,16 +98,17 @@ function buildMatrix({ mobilList, bookings, startIso, todayIso, maxStartIso, use
         return { mobil: m, cells };
     });
 
-    const endIso = days[6].iso;
+    const endIso = days[MATRIX_DAYS - 1].iso;
     const sameYear = startIso.slice(0, 4) === endIso.slice(0, 4);
     const rangeLabel = `${shortDate(startIso, !sameYear)} - ${shortDate(endIso, true)}`;
 
     return {
         days,
         rows,
+        dayCount: MATRIX_DAYS,
         startIso,
-        prevIso: addDays(startIso, -7),
-        nextIso: addDays(startIso, 7),
+        prevIso: addDays(startIso, -MATRIX_DAYS),
+        nextIso: addDays(startIso, MATRIX_DAYS),
         todayIso,
         maxStartIso,
         maxStartLabel: shortDate(maxStartIso, true),
@@ -134,11 +136,11 @@ router.get('/', async (req, res) => {
         `);
         const mobilList = mobilRes.rows;
 
-        // ===== Data tabel jadwal mingguan (mobil x 7 hari) =====
+        // ===== Data tabel jadwal (mobil x MATRIX_DAYS hari) =====
         const todayIso = todayJakarta();
         const maxStartIso = addDays(todayIso, 7);
         const startIso = isValidIso(req.query.start) ? req.query.start : todayIso;
-        const endIso = addDays(startIso, 6);
+        const endIso = addDays(startIso, MATRIX_DAYS - 1);
 
         const weekRes = await db.query(`
             SELECT p.id, p.user_id, p.mobil_id, p.tujuan_peminjaman,
@@ -263,7 +265,6 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
 });
 
 // API Endpoint: Jadwal peminjaman aktif milik seksi user yang sedang login
-// (dipakai form booking untuk memberi peringatan bila rentang tanggal PERSIS sama)
 router.get('/seksi/jadwal', async (req, res) => {
     try {
         const userRes = await db.query('SELECT nama_seksi FROM users WHERE id = $1', [req.session.user.id]);
@@ -289,15 +290,11 @@ router.get('/seksi/jadwal', async (req, res) => {
 });
 
 // Pegawai: Ajukan Peminjaman
-// Aturan: mulai maksimal H+7, tanggal selesai bebas, tidak boleh bentrok dengan
-// peminjaman lain pada mobil yang sama, dan 1 seksi tidak boleh meminjam dengan
-// rentang tanggal yang persis sama (irisan tanggal masih diperbolehkan).
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
 
     try {
-        // Peminjaman dihitung per hari penuh: 00:00:00 s/d 23:59:59
         const startDate = String(tgl_mulai || '').slice(0, 10);
         const endDate = String(tgl_selesai || '').slice(0, 10);
 
@@ -346,9 +343,7 @@ router.post('/pinjam', async (req, res) => {
             return alertBack(res, 400, 'Gagal! Tanggal yang Anda pilih pada mobil ini sudah ter-booking oleh pegawai lain.');
         }
 
-        // 4. KUNCI SEKSI: satu seksi tidak boleh meminjam dengan rentang tanggal yang
-        //    PERSIS SAMA (tanggal mulai & selesai identik) dengan peminjaman aktif seksinya.
-        //    Tanggal yang berbeda atau hanya beririsan tetap diperbolehkan.
+        // 4. KUNCI SEKSI: satu seksi tidak boleh meminjam dengan rentang tanggal yang PERSIS SAMA
         const userRes = await db.query('SELECT nama_seksi FROM users WHERE id = $1', [userId]);
         const namaSeksi = userRes.rows[0] && userRes.rows[0].nama_seksi ? userRes.rows[0].nama_seksi.trim() : '';
 
