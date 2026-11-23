@@ -71,15 +71,15 @@
                         <% if (c.type === 'maint') { %>
                             <td colspan="<%= c.span %>" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - Mohon memilih unit lain.</div></td>
                         <% } else if (c.type === 'booked') { %>
-                            <td colspan="<%= c.span %>" class="day>
-                                <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
-                                    title="<%= c.nama %> (<%= c.seksi || '-' %>) | <%= c.tujuan %> | <%= c.mulai %> s/d <%= c.selesai %>"
-                                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
-                                    onclick="openJadwalModal(this)">
-                                    <span class="cell-name"><%= c.own ? 'Saya - ' : '' %><%= c.nama %></span>
-                                    <span class="cell-sub"><%= c.seksi || '-' %></span>
-                                </button>
-                            </td>
+    <td colspan="<%= c.span %>" class="day">
+        <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
+            title="<%= c.nama %> (<%= c.seksi || '-' %>) | <%= c.tujuan %> | <%= c.mulai %> s/d <%= c.selesai %>"
+            data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
+            onclick="openJadwalModal(this)">
+            <span class="cell-name"><%= c.own ? 'Saya - ' : '' %><%= c.nama %></span>
+            <span class="cell-sub"><%= c.seksi || '-' %></span>
+        </button>
+    </td>
                         <% } else if (c.type === 'free') { %>
                             <td class="day"><button type="button" class="cell cell-free" title="Ajukan peminjaman <%= m.merk_tipe %> pada <%= c.iso %>" aria-label="Ajukan peminjaman <%= m.merk_tipe %> pada <%= c.iso %>" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" data-date="<%= c.iso %>" onclick="openBookingFromCell(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button></td>
                         <% } else { %>
