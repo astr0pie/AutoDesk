@@ -7,7 +7,7 @@
 
 <div class="mb-6 sm:mb-8">
     <h1 class="page-title">Panel Kontrol Administrator</h1>
-    <p class="page-sub">Setujui atau tolak pengajuan peminjaman pegawai, pantau jadwal kendaraan dinas, dan kelola armada.</p>
+    <p class="page-sub">Setujui atau tolak pengajuan peminjaman pegawai, pantau jadwal kendaraan dinas, dan kelola kendaraan.</p>
 </div>
 
 <!-- Tabel Jadwal (Mobil x 14 Hari) — hanya menampilkan peminjaman yang sudah APPROVED -->
@@ -15,7 +15,7 @@
     <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
         <div>
             <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas Operasional</h2>
-            <p class="text-xs text-slate-500 mt-1">Hanya menampilkan peminjaman yang sudah <strong>Disetujui (Approved)</strong>. Geser tabel ke samping untuk melihat tanggal selanjutnya.</p>
+            <p class="text-xs text-slate-500 mt-1">Hanya menampilkan peminjaman yang sudah <strong>Disetujui</strong>.</p>
         </div>
         <div class="week-nav">
             <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 14 Hari Sebelumnya</a>
@@ -68,7 +68,7 @@
                     </th>
                     <% r.cells.forEach(c => { %>
                         <% if (c.type === 'maint') { %>
-                            <td colspan="<%= c.span %>" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - unit terkunci sampai admin mengubah status menjadi FREE</div></td>
+                            <td colspan="<%= c.span %>" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - Mohon memilih unit lain.</div></td>
                         <% } else if (c.type === 'booked') { %>
                             <td colspan="<%= c.span %>" class="day">
                                 <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
