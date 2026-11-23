@@ -7,7 +7,7 @@
 
 <div class="mb-6 sm:mb-8">
     <h1 class="page-title">Dashboard Peminjaman Mobil</h1>
-    <p class="page-sub">Lihat jadwal semua kendaraan dinas dalam satu tabel, lalu klik tanggal yang tersedia untuk membooking. Seksi yang sama tidak dapat meminjam dengan rentang tanggal yang persis sama.</p>
+    <p class="page-sub">Klik tanggal yang tersedia untuk mengajukan peminjaman. Pengajuan berstatus <strong>Diajukan</strong> dan akan masuk ke tabel jadwal setelah <strong>Disetujui (Approved)</strong> oleh Admin.</p>
 </div>
 
 <!-- Tabel Jadwal (Mobil x 14 Hari) -->
@@ -15,7 +15,7 @@
     <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
         <div>
             <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas Operasional</h2>
-            <p class="text-xs text-slate-500 mt-1">Geser tabel ke samping untuk melihat tanggal selanjutnya. Klik kotak hijau (+) untuk membooking mobil.</p>
+            <p class="text-xs text-slate-500 mt-1">Geser tabel ke samping untuk melihat tanggal selanjutnya. Klik kotak hijau (+) untuk mengajukan peminjaman.</p>
         </div>
         <div class="week-nav">
             <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 14 Hari Sebelumnya</a>
@@ -26,9 +26,9 @@
     </div>
 
     <div class="legend">
-        <span><i class="lg-free"></i>Tersedia (klik untuk booking)</span>
-        <span><i class="lg-booked"></i>Ter-booking</span>
-        <span><i class="lg-own"></i>Booking saya</span>
+        <span><i class="lg-free"></i>Tersedia (klik untuk ajukan)</span>
+        <span><i class="lg-booked"></i>Ter-booking (Approved)</span>
+        <span><i class="lg-own"></i>Booking saya (Approved)</span>
         <span><i class="lg-maint"></i>Maintenance</span>
     </div>
 
@@ -81,7 +81,7 @@
                                 </button>
                             </td>
                         <% } else if (c.type === 'free') { %>
-                            <td class="day"><button type="button" class="cell cell-free" title="Booking <%= m.merk_tipe %> pada <%= c.iso %>" aria-label="Booking <%= m.merk_tipe %> pada <%= c.iso %>" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" data-date="<%= c.iso %>" onclick="openBookingFromCell(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button></td>
+                            <td class="day"><button type="button" class="cell cell-free" title="Ajukan peminjaman <%= m.merk_tipe %> pada <%= c.iso %>" aria-label="Ajukan peminjaman <%= m.merk_tipe %> pada <%= c.iso %>" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" data-date="<%= c.iso %>" onclick="openBookingFromCell(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button></td>
                         <% } else { %>
                             <td class="day"><div class="cell cell-off" aria-hidden="true" title="<%= c.type === 'far' ? 'Tanggal mulai booking maksimal 7 hari dari hari ini' : 'Tanggal sudah lewat' %>">&ndash;</div></td>
                         <% } %>
@@ -105,16 +105,16 @@
         </div>
 
         <div class="cal-box fp-readonly"><input type="text" id="jadwalCalendar" class="hidden" tabindex="-1" aria-hidden="true"></div>
-        <p class="hint text-center">Tanggal berlatar <strong>kuning</strong> sudah ter-booking.</p>
+        <p class="hint text-center">Tanggal berlatar <strong>kuning</strong> sudah disetujui (ter-booking).</p>
 
         <div class="mt-4">
-            <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
+            <h4 class="label mb-2">Daftar Rincian Peminjam (Approved)</h4>
             <div id="jadwalList"><p class="text-xs text-slate-400">Memuat data jadwal...</p></div>
         </div>
 
         <div class="modal-foot">
             <button type="button" onclick="closeJadwalModal()" class="btn btn-ghost">Tutup</button>
-            <button type="button" id="btnBookFromJadwal" onclick="bookFromJadwal()" class="btn btn-primary">Booking Mobil Ini</button>
+            <button type="button" id="btnBookFromJadwal" onclick="bookFromJadwal()" class="btn btn-primary">Ajukan Peminjaman</button>
         </div>
     </div>
 </div>
@@ -124,7 +124,7 @@
     <div class="modal-panel max-w-md max-h-[94vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="bookingMobilTitle">
         <div class="modal-head">
             <div class="min-w-0">
-                <h3 id="bookingMobilTitle" class="modal-title">Form Peminjaman</h3>
+                <h3 id="bookingMobilTitle" class="modal-title">Form Pengajuan Peminjaman</h3>
                 <p id="bookingMobilPlat" class="plate plate-sm mt-1"></p>
             </div>
             <button type="button" onclick="closeBookingModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
@@ -144,7 +144,7 @@
                 <span class="label">Pilih Tanggal Peminjaman</span>
                 <div class="cal-box"><input type="text" id="bookingRange" class="hidden" tabindex="-1" aria-hidden="true"></div>
                 <div id="rangeSummary" class="range-summary" aria-live="polite"></div>
-                <p class="hint">Tanggal mulai maksimal 7 hari ke depan (sampai <%= matrix.maxStartLabel %>), tanggal selesai bebas. Berlatar <strong>kuning</strong> = sudah ter-booking. Seksi yang sama tidak boleh meminjam dengan rentang tanggal yang persis sama.</p>
+                <p class="hint">Tanggal mulai maksimal 7 hari ke depan (sampai <%= matrix.maxStartLabel %>), tanggal selesai bebas. Pengajuan akan berstatus <strong>Diajukan</strong> hingga disetujui oleh Admin.</p>
             </div>
 
             <div id="bookingError" class="alert alert-error mt-3" role="alert" style="display:none;"></div>
@@ -161,9 +161,9 @@
 <section class="card p-4 sm:p-6" aria-labelledby="riwayatTitle">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-            <h2 id="riwayatTitle" class="section-title">Riwayat Peminjaman Saya</h2>
+            <h2 id="riwayatTitle" class="section-title">Riwayat &amp; Status Pengajuan Saya</h2>
             <p class="text-xs text-slate-500 mt-1">
-                <%= showAll ? 'Menampilkan seluruh riwayat' : 'Menampilkan transaksi 1 bulan terakhir' %>
+                <%= showAll ? 'Menampilkan seluruh riwayat' : 'Menampilkan pengajuan aktif & transaksi 1 bulan terakhir' %>
             </p>
         </div>
         <div>
@@ -196,16 +196,23 @@
                     <td><%= p.tujuan_peminjaman %></td>
                     <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
                     <td class="whitespace-nowrap">
-                        <% if(p.status_peminjaman === 'APPROVED') { %>
-                            <span class="badge badge-free">APPROVED</span>
+                        <% if(p.status_peminjaman === 'PENDING') { %>
+                            <span class="badge badge-busy">DIAJUKAN</span>
+                        <% } else if(p.status_peminjaman === 'APPROVED') { %>
+                            <span class="badge badge-free">DISETUJUI (APPROVED)</span>
                         <% } else if(p.status_peminjaman === 'REJECTED') { %>
-                            <span class="badge badge-maint">DIBATALKAN</span>
+                            <span class="badge badge-maint">DITOLAK / DIBATALKAN</span>
                         <% } else { %>
                             <span class="badge badge-done">RETURNED</span>
                         <% } %>
                     </td>
                     <td class="whitespace-nowrap">
-                        <% if(p.status_peminjaman === 'APPROVED') { %>
+                        <% if(p.status_peminjaman === 'PENDING') { %>
+                        <form action="/dashboard/batalkan-pengajuan" method="POST" onsubmit="return confirm('Batalkan pengajuan peminjaman ini?');">
+                            <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
+                            <button type="submit" class="btn btn-danger btn-sm">Batalkan Pengajuan</button>
+                        </form>
+                        <% } else if(p.status_peminjaman === 'APPROVED') { %>
                         <form action="/dashboard/kembalikan" method="POST" class="flex flex-col sm:flex-row gap-2">
                             <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
                             <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
@@ -258,7 +265,7 @@ let fpView = null;
 function renderJadwalList(data) {
     const container = document.getElementById('jadwalList');
     if (data.length === 0) {
-        container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking. Mobil ini bebas dipinjam.</div>';
+        container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking yang disetujui. Mobil ini bebas diajukan.</div>';
         return;
     }
     let html = '';
@@ -328,7 +335,7 @@ const MAX_START = '<%= matrix.maxStartIso %>';
 const MAX_START_LABEL = '<%= matrix.maxStartLabel %>';
 let fpBooking = null;
 let blocked = { car: [], seksi: [] };
-const SEKSI_MSG = 'Seksi Anda sudah memiliki peminjaman dengan tanggal yang sama persis. Pilih tanggal yang berbeda (rentang yang hanya beririsan masih diperbolehkan).';
+const SEKSI_MSG = 'Seksi Anda sudah memiliki jadwal/pengajuan peminjaman dengan tanggal yang sama persis. Pilih tanggal yang berbeda (rentang yang hanya beririsan masih diperbolehkan).';
 
 function isSeksiSamaPersis(s, e) {
     return blocked.seksi.some(function (r) { return r.from === s && r.to === e; });
@@ -378,7 +385,7 @@ function openBookingModal(mobil, presetDate) {
     closeJadwalModal();
 
     document.getElementById('booking_mobil_id').value = mobil.id;
-    document.getElementById('bookingMobilTitle').innerText = 'Booking ' + mobil.merk;
+    document.getElementById('bookingMobilTitle').innerText = 'Ajukan Peminjaman ' + mobil.merk;
     document.getElementById('bookingMobilPlat').innerText = mobil.plat;
     document.getElementById('tujuanInput').value = '';
     document.getElementById('tgl_mulai_val').value = '';
@@ -438,7 +445,7 @@ function validateBooking() {
         return false;
     }
     if (blocked.car.some(function (r) { return s <= r.to && e >= r.from; })) {
-        showBookingError('Rentang tanggal yang dipilih melewati hari yang sudah ter-booking. Pilih rentang lain.');
+        showBookingError('Rentang tanggal yang dipilih melewati hari yang sudah disetujui (ter-booking). Pilih rentang lain.');
         return false;
     }
     if (isSeksiSamaPersis(s, e)) {

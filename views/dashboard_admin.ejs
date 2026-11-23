@@ -7,15 +7,15 @@
 
 <div class="mb-6 sm:mb-8">
     <h1 class="page-title">Panel Kontrol Administrator</h1>
-    <p class="page-sub">Pantau jadwal seluruh kendaraan dinas, kelola armada, dan batalkan peminjaman jika diperlukan.</p>
+    <p class="page-sub">Setujui atau tolak pengajuan peminjaman pegawai, pantau jadwal kendaraan dinas, dan kelola armada.</p>
 </div>
 
-<!-- Tabel Jadwal (Mobil x 14 Hari) -->
+<!-- Tabel Jadwal (Mobil x 14 Hari) — hanya menampilkan peminjaman yang sudah APPROVED -->
 <section id="jadwal" class="card p-4 sm:p-6 mb-8" aria-labelledby="jadwalTitle">
     <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
         <div>
             <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas Operasional</h2>
-            <p class="text-xs text-slate-500 mt-1">Geser tabel ke samping untuk melihat tanggal selanjutnya. Klik kotak peminjaman atau nama mobil untuk melihat rincian.</p>
+            <p class="text-xs text-slate-500 mt-1">Hanya menampilkan peminjaman yang sudah <strong>Disetujui (Approved)</strong>. Geser tabel ke samping untuk melihat tanggal selanjutnya.</p>
         </div>
         <div class="week-nav">
             <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 14 Hari Sebelumnya</a>
@@ -27,7 +27,7 @@
 
     <div class="legend">
         <span><i class="lg-free"></i>Tersedia</span>
-        <span><i class="lg-booked"></i>Ter-booking</span>
+        <span><i class="lg-booked"></i>Ter-booking (Approved)</span>
         <span><i class="lg-maint"></i>Maintenance</span>
     </div>
 
@@ -92,6 +92,188 @@
     </div>
 </section>
 
+<!-- Laporan & Persetujuan Peminjaman Pegawai -->
+<section id="log" class="card p-4 sm:p-6 mb-8" aria-labelledby="logTitle">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+        <div>
+            <h2 id="logTitle" class="section-title">Persetujuan &amp; Log Peminjaman Pegawai</h2>
+            <p class="text-xs text-slate-500 mt-1">
+                <%= showAll ? 'Menampilkan seluruh riwayat' : 'Menampilkan pengajuan aktif & transaksi 1 bulan terakhir' %>
+            </p>
+        </div>
+
+        <!-- Form Filter 2 Opsi: Bulan & No. Kendaraan -->
+        <form action="/dashboard" method="GET" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="start" value="<%= matrix.startIso %>">
+            <select name="bulan" aria-label="Filter bulan" class="field field-sm" style="width:auto;">
+                <option value=""> Filter Bulan </option>
+                <% ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].forEach((namaBulan, i) => { %>
+                <option value="<%= i + 1 %>" <%= String(selectedBulan) === String(i + 1) ? 'selected' : '' %>><%= namaBulan %></option>
+                <% }) %>
+            </select>
+            <input type="number" name="tahun" aria-label="Tahun" value="<%= selectedTahun %>" class="field field-sm field-year">
+
+            <select name="mobil_id" aria-label="Filter Kendaraan" class="field field-sm" style="width:auto;">
+                <option value=""> Filter No. Kendaraan </option>
+                <% mobilList.forEach(m => { %>
+                <option value="<%= m.id %>" <%= String(selectedMobilId) === String(m.id) ? 'selected' : '' %>><%= m.plat_nomor %> - <%= m.merk_tipe %></option>
+                <% }) %>
+            </select>
+
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+
+            <% if(showAll) { %>
+                <a href="/dashboard" class="btn btn-ghost btn-sm">1 Bulan Terakhir</a>
+            <% } else { %>
+                <a href="/dashboard?show_all=true" class="btn btn-amber btn-sm">Lihat Semua Riwayat</a>
+            <% } %>
+        </form>
+    </div>
+
+    <!-- Navigation Tabs Kategori (Default aktif: Menunggu Persetujuan jika ada, atau Approved) -->
+    <% var defaultPending = pendingList.length > 0; %>
+    <div class="seg mb-4" role="tablist">
+        <button type="button" onclick="switchTab('pending')" id="tab-pending" role="tab" aria-selected="<%= defaultPending ? 'true' : 'false' %>" class="<%= defaultPending ? 'is-active' : '' %>">
+            Menunggu Persetujuan (<%= pendingList.length %>)
+        </button>
+        <button type="button" onclick="switchTab('approved')" id="tab-approved" role="tab" aria-selected="<%= !defaultPending ? 'true' : 'false' %>" class="<%= !defaultPending ? 'is-active' : '' %>">
+            Disetujui / Approved (<%= approvedList.length %>)
+        </button>
+        <button type="button" onclick="switchTab('finished')" id="tab-finished" role="tab" aria-selected="false">
+            Selesai / Ditolak (<%= finishedList.length %>)
+        </button>
+    </div>
+
+    <!-- TAB 1: MENUNGGU PERSETUJUAN (PENDING / DIAJUKAN) -->
+    <div id="content-pending" class="<%= defaultPending ? '' : 'hidden' %>">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Peminjam</th>
+                        <th>Seksi / Unit</th>
+                        <th>Mobil</th>
+                        <th>Tujuan</th>
+                        <th>Durasi</th>
+                        <th>Status</th>
+                        <th>Aksi Persetujuan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (pendingList.length === 0) { %>
+                        <tr><td colspan="7" class="t-empty">Tidak ada pengajuan peminjaman yang menunggu persetujuan.</td></tr>
+                    <% } %>
+                    <% pendingList.forEach(p => { %>
+                    <tr>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
+                        <td><%= p.nama_seksi || '-' %></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
+                        <td><%= p.tujuan_peminjaman %></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
+                        <td class="whitespace-nowrap"><span class="badge badge-busy">DIAJUKAN</span></td>
+                        <td class="whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <form action="/dashboard/admin/peminjaman/status" method="POST">
+                                    <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
+                                    <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
+                                    <input type="hidden" name="status_peminjaman" value="APPROVED">
+                                    <button type="submit" class="btn btn-primary btn-sm">Setujui (Approve)</button>
+                                </form>
+                                <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Tolak pengajuan peminjaman dari <%= p.nama_user %>?');">
+                                    <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
+                                    <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
+                                    <input type="hidden" name="status_peminjaman" value="REJECTED">
+                                    <button type="submit" class="btn btn-danger btn-sm">Tolak</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 2: DISETUJUI / APPROVED -->
+    <div id="content-approved" class="<%= !defaultPending ? '' : 'hidden' %>">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Peminjam</th>
+                        <th>Seksi / Unit</th>
+                        <th>Mobil</th>
+                        <th>Tujuan</th>
+                        <th>Durasi</th>
+                        <th>Opsi / Batal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (approvedList.length === 0) { %>
+                        <tr><td colspan="6" class="t-empty">Tidak ada peminjaman berstatus Disetujui (Approved).</td></tr>
+                    <% } %>
+                    <% approvedList.forEach(p => { %>
+                    <tr>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
+                        <td><%= p.nama_seksi || '-' %></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
+                        <td><%= p.tujuan_peminjaman %></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
+                        <td class="whitespace-nowrap">
+                            <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Batalkan/Reject peminjaman ini? Jadwal booking akan dihapus dari tabel.');">
+                                <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
+                                <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
+                                <input type="hidden" name="status_peminjaman" value="REJECTED">
+                                <button type="submit" class="btn btn-danger btn-sm">Batalkan (Reject)</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 3: FINISHED / REJECTED -->
+    <div id="content-finished" class="hidden">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Peminjam</th>
+                        <th>Seksi / Unit</th>
+                        <th>Mobil</th>
+                        <th>Tujuan</th>
+                        <th>Durasi</th>
+                        <th>Status Akhir</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (finishedList.length === 0) { %>
+                        <tr><td colspan="6" class="t-empty">Belum ada riwayat peminjaman selesai/ditolak.</td></tr>
+                    <% } %>
+                    <% finishedList.forEach(p => { %>
+                    <tr>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
+                        <td><%= p.nama_seksi || '-' %></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
+                        <td><%= p.tujuan_peminjaman %></td>
+                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
+                        <td class="whitespace-nowrap">
+                            <% if(p.status_peminjaman === 'RETURNED') { %>
+                                <span class="badge badge-done">RETURNED</span>
+                            <% } else { %>
+                                <span class="badge badge-maint">DIBATALKAN / DITOLAK</span>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
 <!-- Form Tambah Mobil (bisa dilipat) -->
 <details class="card mb-8">
     <summary>
@@ -129,7 +311,7 @@
 </details>
 
 <!-- Daftar Armada (tabel) -->
-<section class="card p-4 sm:p-6 mb-8" aria-labelledby="kelolaTitle">
+<section class="card p-4 sm:p-6" aria-labelledby="kelolaTitle">
     <h2 id="kelolaTitle" class="section-title mb-4">Kelola Daftar Mobil<span class="count-chip"><%= mobilList.length %> unit</span></h2>
 
     <div class="tbl-wrap">
@@ -188,136 +370,6 @@
                 <% }) %>
             </tbody>
         </table>
-    </div>
-</section>
-
-<!-- Laporan Log Peminjaman Berdasarkan Kategori & Filter (2 Pilihan: Bulan & No Kendaraan) -->
-<section class="card p-4 sm:p-6" aria-labelledby="logTitle">
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
-        <div>
-            <h2 id="logTitle" class="section-title">Log Peminjaman Pegawai</h2>
-            <p class="text-xs text-slate-500 mt-1">
-                <%= showAll ? 'Menampilkan seluruh riwayat' : 'Menampilkan transaksi terfilter (urut tanggal termuda)' %>
-            </p>
-        </div>
-
-        <!-- Form Filter 2 Opsi: Bulan & No. Kendaraan -->
-        <form action="/dashboard" method="GET" class="flex flex-wrap items-center gap-2">
-            <input type="hidden" name="start" value="<%= matrix.startIso %>">
-            <!-- 1. Filter Bulan & Tahun -->
-            <select name="bulan" aria-label="Filter bulan" class="field field-sm" style="width:auto;">
-                <option value=""> Filter Bulan </option>
-                <% ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].forEach((namaBulan, i) => { %>
-                <option value="<%= i + 1 %>" <%= String(selectedBulan) === String(i + 1) ? 'selected' : '' %>><%= namaBulan %></option>
-                <% }) %>
-            </select>
-            <input type="number" name="tahun" aria-label="Tahun" value="<%= selectedTahun %>" class="field field-sm field-year">
-
-            <!-- 2. Filter No Kendaraan / Mobil -->
-            <select name="mobil_id" aria-label="Filter Kendaraan" class="field field-sm" style="width:auto;">
-                <option value=""> Filter No. Kendaraan </option>
-                <% mobilList.forEach(m => { %>
-                <option value="<%= m.id %>" <%= String(selectedMobilId) === String(m.id) ? 'selected' : '' %>><%= m.plat_nomor %> - <%= m.merk_tipe %></option>
-                <% }) %>
-            </select>
-
-            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-
-            <% if(showAll) { %>
-                <a href="/dashboard" class="btn btn-ghost btn-sm">1 Bulan Terakhir</a>
-            <% } else { %>
-                <a href="/dashboard?show_all=true" class="btn btn-amber btn-sm">Lihat Semua Riwayat</a>
-            <% } %>
-        </form>
-    </div>
-
-    <!-- Navigation Tabs Kategori -->
-    <div class="seg mb-4" role="tablist">
-        <button type="button" onclick="switchTab('approved')" id="tab-approved" role="tab" aria-selected="true" class="is-active">
-            Sedang Dipinjam (<%= approvedList.length %>)
-        </button>
-        <button type="button" onclick="switchTab('finished')" id="tab-finished" role="tab" aria-selected="false">
-            Selesai / Ditolak (<%= finishedList.length %>)
-        </button>
-    </div>
-
-    <!-- TAB 1: SEDANG DIPINJAM (APPROVED) -->
-    <div id="content-approved">
-        <div class="tbl-wrap">
-            <table class="tbl">
-                <thead>
-                    <tr>
-                        <th>Peminjam</th>
-                        <th>Seksi / Unit</th>
-                        <th>Mobil</th>
-                        <th>Tujuan</th>
-                        <th>Durasi</th>
-                        <th>Opsi / Batal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% if (approvedList.length === 0) { %>
-                        <tr><td colspan="6" class="t-empty">Tidak ada mobil yang sedang dipinjam.</td></tr>
-                    <% } %>
-                    <% approvedList.forEach(p => { %>
-                    <tr>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
-                        <td><%= p.nama_seksi || '-' %></td>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
-                        <td><%= p.tujuan_peminjaman %></td>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
-                        <td class="whitespace-nowrap">
-                            <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Batalkan/Reject peminjaman ini? Jadwal booking akan dihapus dari kalender.');">
-                                <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
-                                <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
-                                <input type="hidden" name="status_peminjaman" value="REJECTED">
-                                <button type="submit" class="btn btn-danger btn-sm">Batalkan (Reject)</button>
-                            </form>
-                        </td>
-                    </tr>
-                    <% }) %>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- TAB 2: FINISHED / REJECTED -->
-    <div id="content-finished" class="hidden">
-        <div class="tbl-wrap">
-            <table class="tbl">
-                <thead>
-                    <tr>
-                        <th>Peminjam</th>
-                        <th>Seksi / Unit</th>
-                        <th>Mobil</th>
-                        <th>Tujuan</th>
-                        <th>Durasi</th>
-                        <th>Status Akhir</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% if (finishedList.length === 0) { %>
-                        <tr><td colspan="6" class="t-empty">Belum ada riwayat peminjaman selesai/ditolak.</td></tr>
-                    <% } %>
-                    <% finishedList.forEach(p => { %>
-                    <tr>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.nama_user %></span><span class="t-sub">@<%= p.username %></span></td>
-                        <td><%= p.nama_seksi || '-' %></td>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.merk_tipe %></span><span class="t-sub"><%= p.plat_nomor %></span></td>
-                        <td><%= p.tujuan_peminjaman %></td>
-                        <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
-                        <td class="whitespace-nowrap">
-                            <% if(p.status_peminjaman === 'RETURNED') { %>
-                                <span class="badge badge-done">RETURNED</span>
-                            <% } else { %>
-                                <span class="badge badge-maint">DIBATALKAN / REJECTED</span>
-                            <% } %>
-                        </td>
-                    </tr>
-                    <% }) %>
-                </tbody>
-            </table>
-        </div>
     </div>
 </section>
 
@@ -388,10 +440,10 @@
         </div>
 
         <div class="cal-box fp-readonly"><input type="text" id="jadwalCalendar" class="hidden" tabindex="-1" aria-hidden="true"></div>
-        <p class="hint text-center">Tanggal berlatar <strong>kuning</strong> sudah ter-booking.</p>
+        <p class="hint text-center">Tanggal berlatar <strong>kuning</strong> sudah disetujui (ter-booking).</p>
 
         <div class="mt-4">
-            <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
+            <h4 class="label mb-2">Daftar Rincian Peminjam (Approved)</h4>
             <div id="jadwalList"><p class="text-xs text-slate-400">Memuat data jadwal...</p></div>
         </div>
 
@@ -435,7 +487,7 @@ let fpView = null;
 function renderJadwalList(data) {
     const container = document.getElementById('jadwalList');
     if (data.length === 0) {
-        container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking. Mobil ini bebas dipinjam.</div>';
+        container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking yang disetujui. Mobil ini bebas dipinjam.</div>';
         return;
     }
     let html = '';
@@ -488,7 +540,7 @@ function openJadwalModal(el) {
 }
 
 function switchTab(category) {
-    ['approved', 'finished'].forEach(function (cat) {
+    ['pending', 'approved', 'finished'].forEach(function (cat) {
         const tabBtn = document.getElementById('tab-' + cat);
         const contentDiv = document.getElementById('content-' + cat);
         if (cat === category) {
