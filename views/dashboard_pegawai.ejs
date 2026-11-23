@@ -1,185 +1,155 @@
 <%- include('partials/header') %>
 
-<!-- Flatpickr CSS & JS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<style>
-  .flatpickr-calendar {
-    font-family: inherit !important;
-    border-radius: 14px !important;
-    box-shadow: 0 18px 40px -10px rgba(14, 42, 92, 0.3) !important;
-    border: 1px solid #DCE2EC !important;
-    z-index: 9999 !important;
-  }
-  .flatpickr-current-month {
-    font-family: inherit !important;
-    font-weight: 700 !important;
-    font-size: 0.95rem !important;
-  }
-  .flatpickr-current-month .flatpickr-monthDropdown-months,
-  .flatpickr-current-month input.cur-year {
-    font-family: inherit !important;
-    font-weight: 700 !important;
-  }
-  .flatpickr-day.selected,
-  .flatpickr-day.selected:hover {
-    background: #1E40AF !important;
-    border-color: #1E40AF !important;
-    color: #fff !important;
-  }
-  .flatpickr-day.today:not(.selected) {
-    border-color: #FACC15 !important;
-  }
-  .flatpickr-day.booked-date {
-    background-color: #fef08a !important;
-    color: #854d0e !important;
-    font-weight: 700 !important;
-    border-radius: 9999px !important;
-    border: 1px solid #fde047 !important;
-  }
-</style>
+<!-- Flatpickr (kalender) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/id.js"></script>
 
 <div class="mb-6 sm:mb-8">
     <h1 class="page-title">Dashboard Peminjaman Mobil</h1>
-    <p class="page-sub">Pilih unit kendaraan dinas dan atur jadwal peminjaman Anda.</p>
+    <p class="page-sub">Lihat jadwal semua kendaraan dinas dalam satu tabel, lalu klik tanggal yang tersedia untuk membooking. Seksi yang sama tidak dapat meminjam dengan rentang tanggal yang persis sama.</p>
 </div>
 
-<!-- Daftar Mobil (Tanpa Dropdown Header) -->
-<section class="mb-10" aria-labelledby="armadaTitle">
-    <h2 id="armadaTitle" class="section-title mb-4">Status Kendaraan Operasional<span class="count-chip"><%= mobilList.length %> unit</span></h2>
+<!-- Tabel Jadwal Mingguan (Mobil x 7 Hari) -->
+<section id="jadwal" class="card p-4 sm:p-6 mb-8" aria-labelledby="jadwalTitle">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
+        <div>
+            <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas</h2>
+            <p class="text-xs text-slate-500 mt-1">Klik kotak hijau (+) untuk membooking mobil. Klik kotak peminjaman atau nama mobil untuk melihat jadwalnya.</p>
+        </div>
+        <div class="week-nav">
+            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 7 Hari Sebelumnya</a>
+            <span class="week-label"><%= matrix.rangeLabel %></span>
+            <a class="btn <%= matrix.isCurrentWeek ? 'btn-soft' : 'btn-ghost' %> btn-sm" href="/dashboard#jadwal">Hari Ini</a>
+            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.nextIso %>#jadwal">7 Hari Berikutnya <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></a>
+        </div>
+    </div>
 
-    <% if (mobilList.length === 0) { %>
-        <div class="card p-8 text-center text-sm text-slate-500">Belum ada unit kendaraan yang terdaftar.</div>
-    <% } %>
+    <div class="legend">
+        <span><i class="lg-free"></i>Tersedia (klik untuk booking)</span>
+        <span><i class="lg-booked"></i>Ter-booking</span>
+        <span><i class="lg-own"></i>Booking saya</span>
+        <span><i class="lg-maint"></i>Maintenance</span>
+    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        <% mobilList.forEach(m => { %>
-        <article class="car-card">
-            <div class="car-top">
-                <span class="plate"><%= m.plat_nomor %></span>
-                <% if(m.status === 'MAINTENANCE') { %>
-                    <span class="badge badge-maint">MAINTENANCE</span>
-                <% } else if(m.is_booked || m.status === 'DIPINJAM') { %>
-                    <span class="badge badge-busy">Booked</span>
-                <% } else { %>
-                    <span class="badge badge-free">FREE</span>
+    <div class="mx-wrap" tabindex="0" role="region" aria-label="Tabel jadwal pemakaian kendaraan">
+        <table class="mx">
+            <colgroup>
+                <col class="mx-col-unit">
+                <% matrix.days.forEach(() => { %><col><% }) %>
+            </colgroup>
+            <thead>
+                <tr>
+                    <th scope="col" class="mx-unit">Unit Kendaraan</th>
+                    <% matrix.days.forEach(d => { %>
+                    <th scope="col" class="<%= d.isToday ? 'is-today' : '' %> <%= d.isWeekend ? 'is-weekend' : '' %>"><%= d.label %><small><%= d.dow %></small></th>
+                    <% }) %>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (matrix.rows.length === 0) { %>
+                    <tr><td colspan="8" class="t-empty" style="padding:2rem 1rem;text-align:center;color:var(--faint);">Belum ada unit kendaraan yang terdaftar.</td></tr>
                 <% } %>
-            </div>
-
-            <div>
-                <h3 class="car-name"><%= m.merk_tipe %></h3>
-            </div>
-
-            <dl class="spec">
-                <div><dt>Kategori</dt><dd><%= m.kategori %></dd></div>
-                <div><dt>Kapasitas</dt><dd><%= m.kapasitas %> Seat</dd></div>
-            </dl>
-
-            <p class="car-note"><strong>Catatan Kondisi:</strong> <%= m.kondapat_catatan || 'Siap pakai' %></p>
-
-            <div class="car-actions">
-                <button type="button"
-                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>"
-                    onclick="openDetailModal(this.dataset.id, this.dataset.merk, this.dataset.plat)"
-                    class="btn btn-ghost btn-block">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
-                    Detail Peminjam &amp; Jadwal
-                </button>
-                <% if (m.status === 'MAINTENANCE') { %>
-                <button type="button" disabled
-                    class="btn btn-block bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed opacity-75">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                    Sedang Maintenance (Terkunci)
-                </button>
-                <% } else { %>
-                <button type="button"
-                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
-                    onclick="openBookingModal(this.dataset.id, this.dataset.merk, this.dataset.plat, this.dataset.status)"
-                    class="btn btn-primary btn-block">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                    Ajukan Pinjaman / Booking
-                </button>
-                <% } %>
-            </div>
-        </article>
-        <% }) %>
+                <% matrix.rows.forEach(r => { const m = r.mobil; %>
+                <tr>
+                    <th scope="row" class="mx-unit">
+                        <div class="unit-top">
+                            <span class="plate plate-sm"><%= m.plat_nomor %></span>
+                            <% if (m.status === 'MAINTENANCE') { %>
+                                <span class="badge badge-maint">MAINTENANCE</span>
+                            <% } else if (m.is_booked || m.status === 'DIPINJAM') { %>
+                                <span class="badge badge-busy">Booked</span>
+                            <% } else { %>
+                                <span class="badge badge-free">FREE</span>
+                            <% } %>
+                        </div>
+                        <button type="button" class="unit-name" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" onclick="openJadwalModal(this)"><%= m.merk_tipe %></button>
+                        <span class="unit-meta"><%= m.kategori %> &middot; <%= m.kapasitas %> Seat</span>
+                        <span class="unit-note" title="<%= m.kondapat_catatan || 'Siap pakai' %>">Kondisi: <%= m.kondapat_catatan || 'Siap pakai' %></span>
+                    </th>
+                    <% r.cells.forEach(c => { %>
+                        <% if (c.type === 'maint') { %>
+                            <td colspan="7" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - unit terkunci sampai admin mengubah status menjadi FREE</div></td>
+                        <% } else if (c.type === 'booked') { %>
+                            <td colspan="<%= c.span %>" class="day">
+                                <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
+                                    title="<%= c.nama %> (<%= c.seksi || '-' %>) | <%= c.tujuan %> | <%= c.mulai %> s/d <%= c.selesai %>"
+                                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
+                                    onclick="openJadwalModal(this)">
+                                    <span class="cell-name"><%= c.own ? 'Saya - ' : '' %><%= c.nama %></span>
+                                    <span class="cell-sub"><%= c.seksi || '-' %></span>
+                                </button>
+                            </td>
+                        <% } else if (c.type === 'free') { %>
+                            <td class="day"><button type="button" class="cell cell-free" title="Booking <%= m.merk_tipe %> pada <%= c.iso %>" aria-label="Booking <%= m.merk_tipe %> pada <%= c.iso %>" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" data-date="<%= c.iso %>" onclick="openBookingFromCell(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button></td>
+                        <% } else { %>
+                            <td class="day"><div class="cell cell-off" aria-hidden="true" title="<%= c.type === 'far' ? 'Tanggal mulai booking maksimal 7 hari dari hari ini' : 'Tanggal sudah lewat' %>">&ndash;</div></td>
+                        <% } %>
+                    <% }) %>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
     </div>
 </section>
 
-<!-- MODAL 1: Detail Peminjam & Jadwal Booking -->
-<div id="detailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-3 sm:p-4">
-    <div class="modal-panel max-w-lg max-h-[85vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="detailMobilTitle">
+<!-- Modal Jadwal Unit (kalender + daftar peminjam) -->
+<div id="jadwalModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-2 sm:p-4">
+    <div class="modal-panel max-w-md max-h-[92vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="jadwalMobilTitle">
         <div class="modal-head">
             <div class="min-w-0">
-                <h3 id="detailMobilTitle" class="modal-title truncate"></h3>
-                <p id="detailMobilPlat" class="plate plate-sm mt-1"></p>
+                <h3 id="jadwalMobilTitle" class="modal-title"></h3>
+                <p id="jadwalMobilPlat" class="plate plate-sm mt-1"></p>
             </div>
-            <button type="button" onclick="closeDetailModal()" class="icon-btn" aria-label="Tutup">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+            <button type="button" onclick="closeJadwalModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
 
-        <div class="space-y-4">
-            <div>
-                <button id="pegawaiCalendarBtn" type="button" class="w-full py-2.5 px-4 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 font-bold text-xs hover:bg-slate-200 transition text-left flex items-center justify-between">
-                    <span>📅 Melihat Tanggal Ter-booking</span>
-                    <span class="text-slate-500 font-normal text-[11px]">Klik untuk lihat kalender</span>
-                </button>
-                <input type="text" id="pegawaiCalendarView" class="hidden">
-            </div>
+        <div class="cal-box fp-readonly"><input type="text" id="jadwalCalendar" class="hidden" tabindex="-1" aria-hidden="true"></div>
+        <p class="hint text-center">Tanggal berlatar <strong>kuning</strong> sudah ter-booking.</p>
 
-            <div>
-                <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
-                <div id="jadwalContainer">
-                    <p class="text-xs text-slate-400">Memuat data jadwal...</p>
-                </div>
-            </div>
+        <div class="mt-4">
+            <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
+            <div id="jadwalList"><p class="text-xs text-slate-400">Memuat data jadwal...</p></div>
         </div>
 
         <div class="modal-foot">
-            <button type="button" onclick="closeDetailModal()" class="btn btn-ghost">Tutup</button>
+            <button type="button" onclick="closeJadwalModal()" class="btn btn-ghost">Tutup</button>
+            <button type="button" id="btnBookFromJadwal" onclick="bookFromJadwal()" class="btn btn-primary">Booking Mobil Ini</button>
         </div>
     </div>
 </div>
 
-<!-- MODAL 2: Form Ajukan Pinjaman / Booking -->
-<div id="bookingModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-3 sm:p-4">
-    <div class="modal-panel max-w-md max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="bookingMobilTitle">
+<!-- Modal Form Booking (kalender rentang tanggal) -->
+<div id="bookingModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-2 sm:p-4">
+    <div class="modal-panel max-w-md max-h-[94vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="bookingMobilTitle">
         <div class="modal-head">
             <div class="min-w-0">
-                <h3 id="bookingMobilTitle" class="modal-title truncate">Form Peminjaman</h3>
+                <h3 id="bookingMobilTitle" class="modal-title">Form Peminjaman</h3>
                 <p id="bookingMobilPlat" class="plate plate-sm mt-1"></p>
             </div>
-            <button type="button" onclick="closeBookingModal()" class="icon-btn" aria-label="Tutup">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+            <button type="button" onclick="closeBookingModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
 
-        <form action="/dashboard/pinjam" method="POST" class="space-y-4">
+        <form action="/dashboard/pinjam" method="POST" onsubmit="return validateBooking()" autocomplete="off">
             <input type="hidden" id="booking_mobil_id" name="mobil_id">
+            <input type="hidden" id="tgl_mulai_val" name="tgl_mulai">
+            <input type="hidden" id="tgl_selesai_val" name="tgl_selesai">
 
             <div>
                 <label for="tujuanInput" class="label">Tujuan Dinas / Kegiatan</label>
-                <input type="text" id="tujuanInput" name="tujuan" required placeholder="Contoh: Pendampingan Pemeriksaan Lapangan" class="field">
+                <input type="text" id="tujuanInput" name="tujuan" required autocomplete="off" placeholder="Contoh: Pendampingan Pemeriksaan Lapangan" class="field">
             </div>
 
-            <div class="notice">
-                <p class="font-bold mb-1">Catatan Pemilih Tanggal</p>
-                <p>Tanggal mulai booking maksimal <strong>7 hari ke depan</strong> dari hari ini. Tanggal berlatar <strong>kuning</strong> menunjukkan mobil sudah ter-booking.</p>
+            <div class="mt-4">
+                <span class="label">Pilih Tanggal Peminjaman</span>
+                <div class="cal-box"><input type="text" id="bookingRange" class="hidden" tabindex="-1" aria-hidden="true"></div>
+                <div id="rangeSummary" class="range-summary" aria-live="polite"></div>
+                <p class="hint">Tanggal mulai maksimal 7 hari ke depan (sampai <%= matrix.maxStartLabel %>), tanggal selesai bebas. Berlatar <strong>kuning</strong> = sudah ter-booking. Seksi yang sama tidak boleh meminjam dengan rentang tanggal yang persis sama.</p>
             </div>
 
-            <div>
-                <label for="tgl_mulai_picker" class="label">Tanggal &amp; Waktu Mulai</label>
-                <input type="text" id="tgl_mulai_picker" name="tgl_mulai" required placeholder="Pilih Tanggal Mulai" class="field cursor-pointer">
-            </div>
+            <div id="bookingError" class="alert alert-error mt-3" role="alert" style="display:none;"></div>
 
-            <div>
-                <label for="tgl_selesai_picker" class="label">Tanggal &amp; Waktu Selesai</label>
-                <input type="text" id="tgl_selesai_picker" name="tgl_selesai" required placeholder="Pilih Tanggal Selesai" class="field cursor-pointer">
-            </div>
-
-            <div class="modal-foot" style="margin-top:1.25rem;">
+            <div class="modal-foot">
                 <button type="button" onclick="closeBookingModal()" class="btn btn-ghost">Batal</button>
                 <button type="submit" class="btn btn-primary">Kirim Pengajuan</button>
             </div>
@@ -254,175 +224,229 @@
 </section>
 
 <script>
-let fpMulai, fpSelesai, fpPegawaiView;
-let activeMobilForBooking = { id: '', merk: '', plat: '' };
-
+// ---------- Utilitas ----------
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
 }
-
 const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
+const LOCALE_ID = (window.flatpickr && flatpickr.l10ns && flatpickr.l10ns.id) ? flatpickr.l10ns.id : 'default';
 
-function openDetailModal(mobilId, merk, plat) {
-    activeMobilForBooking = { id: mobilId, merk: merk, plat: plat };
-    document.getElementById('detailMobilTitle').innerText = merk;
-    document.getElementById('detailMobilPlat').innerText = plat;
+function pad2(n) { return String(n).padStart(2, '0'); }
+function dayIso(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function inRanges(iso, ranges) { return ranges.some(function (r) { return iso >= r.from && iso <= r.to; }); }
+function toRange(item) { return { from: item.tgl_mulai.split('T')[0], to: item.tgl_selesai.split('T')[0] }; }
+function fmtLong(d) { return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); }
 
-    const container = document.getElementById('jadwalContainer');
-    container.innerHTML = '<p class="text-xs text-slate-400">Memuat jadwal...</p>';
-
-    fetch(`/dashboard/mobil/${mobilId}/jadwal`)
-        .then(res => res.json())
-        .then(data => {
-            const disableRanges = [];
-            data.forEach(item => {
-                disableRanges.push({
-                    from: item.tgl_mulai.split('T')[0],
-                    to: item.tgl_selesai.split('T')[0]
-                });
-            });
-
-            if (fpPegawaiView) fpPegawaiView.destroy();
-            fpPegawaiView = flatpickr("#pegawaiCalendarView", {
-                inline: false,
-                dateFormat: "Y-m-d",
-                disable: disableRanges,
-                onDayCreate: function(dObj, dStr, fp, dayElem) {
-                    const dayDate = dayElem.dateObj;
-                    disableRanges.forEach(range => {
-                        const start = new Date(range.from + 'T00:00:00');
-                        const end = new Date(range.to + 'T23:59:59');
-                        if (dayDate >= start && dayDate <= end) {
-                            dayElem.classList.add("booked-date");
-                            dayElem.title = "Sudah ter-booking";
-                        }
-                    });
-                }
-            });
-
-            document.getElementById('pegawaiCalendarBtn').onclick = () => {
-                fpPegawaiView.open();
-            };
-
-            if (data.length === 0) {
-                container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking. Mobil ini sepenuhnya bebas dipinjam!</div>';
-                return;
-            }
-            let html = '';
-            data.forEach(item => {
-                const tglStart = item.tgl_mulai_str || item.tgl_mulai.split('T')[0];
-                const tglEnd = item.tgl_selesai_str || item.tgl_selesai.split('T')[0];
-
-                html += `
-                    <div class="sched-item">
-                        <div class="flex justify-between items-center gap-2">
-                            <span class="font-bold text-slate-900 truncate">${esc(item.nama_peminjam)} (${esc(item.nama_seksi || '-')})</span>
-                            <span class="badge badge-free shrink-0">APPROVED</span>
-                        </div>
-                        <p class="text-slate-600 break-words mt-1"><strong>Tujuan:</strong> ${esc(item.tujuan_peminjaman)}</p>
-                        <p class="text-brandBlue font-semibold mt-1">${CAL_ICON}${tglStart} s/d ${tglEnd}</p>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        })
-        .catch(err => {
-            container.innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman.</p>';
-        });
-
+function openModal(id) {
     document.body.classList.add('overflow-hidden');
-    const modal = document.getElementById('detailModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    const m = document.getElementById(id);
+    m.classList.remove('hidden');
+    m.classList.add('flex');
 }
-
-function closeDetailModal() {
+function closeModal(id) {
     document.body.classList.remove('overflow-hidden');
-    const modal = document.getElementById('detailModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    const m = document.getElementById(id);
+    m.classList.add('hidden');
+    m.classList.remove('flex');
 }
 
-function openBookingModal(mobilId, merk, plat, status) {
-    if (status === 'MAINTENANCE') {
-        alert('Mobil ini sedang dalam status MAINTENANCE dan terkunci.');
+// ---------- Modal Jadwal Unit (kalender baca-saja + daftar peminjam) ----------
+let fpView = null;
+
+function renderJadwalList(data) {
+    const container = document.getElementById('jadwalList');
+    if (data.length === 0) {
+        container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking. Mobil ini bebas dipinjam.</div>';
         return;
     }
+    let html = '';
+    data.forEach(function (item) {
+        const tglStart = item.tgl_mulai_str || item.tgl_mulai.split('T')[0];
+        const tglEnd = item.tgl_selesai_str || item.tgl_selesai.split('T')[0];
+        html += '<div class="sched-item">' +
+            '<div class="flex justify-between items-center gap-2">' +
+                '<span class="font-bold text-slate-900 truncate">' + esc(item.nama_peminjam) + ' (' + esc(item.nama_seksi || '-') + ')</span>' +
+                '<span class="badge badge-free shrink-0">APPROVED</span>' +
+            '</div>' +
+            '<p class="text-slate-600 break-words mt-1"><strong>Tujuan:</strong> ' + esc(item.tujuan_peminjaman) + '</p>' +
+            '<p class="text-brandBlue font-semibold mt-1">' + CAL_ICON + tglStart + ' s/d ' + tglEnd + '</p>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+}
 
-    closeDetailModal();
+function closeJadwalModal() {
+    closeModal('jadwalModal');
+}
 
-    document.getElementById('booking_mobil_id').value = mobilId;
-    document.getElementById('bookingMobilTitle').innerText = `Booking ${merk}`;
-    document.getElementById('bookingMobilPlat').innerText = plat;
+let currentMobil = { id: '', merk: '', plat: '', status: '' };
 
-    fetch(`/dashboard/mobil/${mobilId}/jadwal`)
-        .then(res => res.json())
-        .then(data => {
-            const disableRanges = [];
-            data.forEach(item => {
-                disableRanges.push({
-                    from: item.tgl_mulai.split('T')[0],
-                    to: item.tgl_selesai.split('T')[0]
-                });
-            });
+function openJadwalModal(el) {
+    currentMobil = { id: el.dataset.id, merk: el.dataset.merk, plat: el.dataset.plat, status: el.dataset.status };
+    document.getElementById('jadwalMobilTitle').innerText = currentMobil.merk;
+    document.getElementById('jadwalMobilPlat').innerText = currentMobil.plat;
+    document.getElementById('btnBookFromJadwal').style.display = currentMobil.status === 'MAINTENANCE' ? 'none' : '';
+    document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-slate-400">Memuat data jadwal...</p>';
+    openModal('jadwalModal');
 
-            if (fpMulai) fpMulai.destroy();
-            if (fpSelesai) fpSelesai.destroy();
-
-            const maxStartDateLimit = new Date();
-            maxStartDateLimit.setDate(maxStartDateLimit.getDate() + 7);
-
-            const baseConfig = {
-                enableTime: true,
-                dateFormat: "Y-m-d H:i",
-                minDate: "today",
-                disable: disableRanges,
-                onDayCreate: function(dObj, dStr, fp, dayElem) {
-                    const dayDate = dayElem.dateObj;
-                    disableRanges.forEach(range => {
-                        const start = new Date(range.from + 'T00:00:00');
-                        const end = new Date(range.to + 'T23:59:59');
-                        if (dayDate >= start && dayDate <= end) {
-                            dayElem.classList.add("booked-date");
-                            dayElem.title = "Sudah ter-booking";
-                        }
-                    });
-                }
-            };
-
-            fpMulai = flatpickr("#tgl_mulai_picker", {
-                ...baseConfig,
-                maxDate: maxStartDateLimit,
-                onChange: function(selectedDates, dateStr) {
-                    if (selectedDates.length > 0) {
-                        fpSelesai.set("minDate", selectedDates[0]);
+    fetch('/dashboard/mobil/' + encodeURIComponent(currentMobil.id) + '/jadwal')
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (!Array.isArray(data)) throw new Error('format');
+            const ranges = data.map(toRange);
+            if (fpView) { fpView.destroy(); fpView = null; }
+            fpView = flatpickr('#jadwalCalendar', {
+                inline: true,
+                locale: LOCALE_ID,
+                onDayCreate: function (dObj, dStr, fp, dayElem) {
+                    if (inRanges(dayIso(dayElem.dateObj), ranges)) {
+                        dayElem.classList.add('booked-date');
+                        dayElem.title = 'Sudah ter-booking';
                     }
                 }
             });
-
-            fpSelesai = flatpickr("#tgl_selesai_picker", {
-                ...baseConfig
-            });
+            renderJadwalList(data);
+        })
+        .catch(function () {
+            document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman.</p>';
         });
+}
 
-    document.body.classList.add('overflow-hidden');
-    const modal = document.getElementById('bookingModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+function bookFromJadwal() {
+    openBookingModal(currentMobil, null);
+}
+
+function openBookingFromCell(el) {
+    currentMobil = { id: el.dataset.id, merk: el.dataset.merk, plat: el.dataset.plat, status: el.dataset.status };
+    openBookingModal(currentMobil, el.dataset.date);
+}
+
+// ---------- Modal Booking (kalender rentang tanggal) ----------
+const MAX_START = '<%= matrix.maxStartIso %>';
+const MAX_START_LABEL = '<%= matrix.maxStartLabel %>';
+let fpBooking = null;
+let blocked = { car: [], seksi: [] };
+const SEKSI_MSG = 'Seksi Anda sudah memiliki peminjaman dengan tanggal yang sama persis. Pilih tanggal yang berbeda (rentang yang hanya beririsan masih diperbolehkan).';
+
+// Seksi yang sama tidak boleh meminjam dengan tanggal mulai & selesai yang persis sama
+function isSeksiSamaPersis(s, e) {
+    return blocked.seksi.some(function (r) { return r.from === s && r.to === e; });
+}
+
+function showBookingError(msg) {
+    const box = document.getElementById('bookingError');
+    box.innerText = msg;
+    box.style.display = 'block';
+}
+function hideBookingError() {
+    document.getElementById('bookingError').style.display = 'none';
+}
+
+function updateSummary(selectedDates) {
+    const s = document.getElementById('tgl_mulai_val');
+    const e = document.getElementById('tgl_selesai_val');
+    const box = document.getElementById('rangeSummary');
+    hideBookingError();
+
+    if (!selectedDates || selectedDates.length === 0) {
+        s.value = ''; e.value = '';
+        box.innerHTML = 'Pilih <strong>tanggal mulai</strong>, lalu <strong>tanggal selesai</strong> pada kalender.';
+        return;
+    }
+    const a = selectedDates[0];
+    s.value = dayIso(a);
+
+    if (selectedDates.length < 2) {
+        e.value = '';
+        box.innerHTML = 'Mulai <strong>' + fmtLong(a) + '</strong>. Sekarang klik <strong>tanggal selesai</strong> (klik tanggal yang sama untuk 1 hari).';
+    } else {
+        const b = selectedDates[1];
+        e.value = dayIso(b);
+        const n = Math.round((b - a) / 86400000) + 1;
+        box.innerHTML = '<strong>' + fmtLong(a) + '</strong> s/d <strong>' + fmtLong(b) + '</strong> &middot; ' + n + ' hari';
+    }
+
+    if (s.value > MAX_START) {
+        showBookingError('Tanggal mulai maksimal 7 hari dari hari ini (sampai ' + MAX_START_LABEL + '). Pilih tanggal mulai yang lebih awal.');
+    } else if (e.value && isSeksiSamaPersis(s.value, e.value)) {
+        showBookingError(SEKSI_MSG);
+    }
+}
+
+function openBookingModal(mobil, presetDate) {
+    closeJadwalModal();
+
+    document.getElementById('booking_mobil_id').value = mobil.id;
+    document.getElementById('bookingMobilTitle').innerText = 'Booking ' + mobil.merk;
+    document.getElementById('bookingMobilPlat').innerText = mobil.plat;
+    document.getElementById('tujuanInput').value = '';
+    document.getElementById('tgl_mulai_val').value = '';
+    document.getElementById('tgl_selesai_val').value = '';
+    document.getElementById('rangeSummary').innerHTML = 'Memuat kalender...';
+    hideBookingError();
+    openModal('bookingModal');
+
+    Promise.all([
+        fetch('/dashboard/mobil/' + encodeURIComponent(mobil.id) + '/jadwal').then(function (r) { return r.json(); }),
+        fetch('/dashboard/seksi/jadwal').then(function (r) { return r.json(); })
+    ]).then(function (res) {
+        const car = Array.isArray(res[0]) ? res[0] : [];
+        const seksi = Array.isArray(res[1]) ? res[1] : [];
+        blocked.car = car.map(toRange);
+        blocked.seksi = seksi.map(function (it) { return { from: it.d_mulai, to: it.d_selesai }; });
+
+        if (fpBooking) { fpBooking.destroy(); fpBooking = null; }
+        fpBooking = flatpickr('#bookingRange', {
+            inline: true,
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            locale: LOCALE_ID,
+            minDate: 'today',
+            disable: blocked.car,
+            defaultDate: presetDate ? [presetDate, presetDate] : null,
+            onDayCreate: function (dObj, dStr, fp, dayElem) {
+                const iso = dayIso(dayElem.dateObj);
+                if (inRanges(iso, blocked.car)) {
+                    dayElem.classList.add('booked-date');
+                    dayElem.title = 'Sudah ter-booking';
+                }
+            },
+            onChange: function (selectedDates) { updateSummary(selectedDates); },
+            onReady: function (selectedDates) { updateSummary(selectedDates); }
+        });
+    }).catch(function () {
+        document.getElementById('rangeSummary').innerHTML = 'Gagal memuat kalender. Muat ulang halaman lalu coba lagi.';
+    });
 }
 
 function closeBookingModal() {
-    document.body.classList.remove('overflow-hidden');
-    const modal = document.getElementById('bookingModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeModal('bookingModal');
+}
 
-    if (activeMobilForBooking.id) {
-        openDetailModal(activeMobilForBooking.id, activeMobilForBooking.merk, activeMobilForBooking.plat);
-        activeMobilForBooking = { id: '', merk: '', plat: '' };
+function validateBooking() {
+    const s = document.getElementById('tgl_mulai_val').value;
+    const e = document.getElementById('tgl_selesai_val').value;
+    hideBookingError();
+
+    if (!s || !e) {
+        showBookingError('Pilih tanggal mulai dan tanggal selesai pada kalender.');
+        return false;
     }
+    if (s > MAX_START) {
+        showBookingError('Tanggal mulai maksimal 7 hari dari hari ini (sampai ' + MAX_START_LABEL + ').');
+        return false;
+    }
+    if (blocked.car.some(function (r) { return s <= r.to && e >= r.from; })) {
+        showBookingError('Rentang tanggal yang dipilih melewati hari yang sudah ter-booking. Pilih rentang lain.');
+        return false;
+    }
+    if (isSeksiSamaPersis(s, e)) {
+        showBookingError(SEKSI_MSG);
+        return false;
+    }
+    return true;
 }
 </script>
 

@@ -10,6 +10,111 @@ const authMiddleware = (req, res, next) => {
 
 router.use(authMiddleware);
 
+// =====================================================================
+// Helper tanggal (semua dihitung dengan zona waktu WIB / Asia/Jakarta
+// supaya konsisten walau server Vercel berjalan di UTC)
+// =====================================================================
+const DOW_ID = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const MON_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const pad2 = (n) => String(n).padStart(2, '0');
+const toIso = (d) => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+const parseIso = (s) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+};
+const isValidIso = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && toIso(parseIso(s)) === s;
+const addDays = (iso, n) => {
+    const d = parseIso(iso);
+    d.setUTCDate(d.getUTCDate() + n);
+    return toIso(d);
+};
+const daysBetween = (a, b) => Math.round((parseIso(b) - parseIso(a)) / 86400000);
+const todayJakarta = () => new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const shortDate = (iso, withYear) => {
+    const d = parseIso(iso);
+    return `${d.getUTCDate()} ${MON_ID[d.getUTCMonth()]}${withYear ? ' ' + d.getUTCFullYear() : ''}`;
+};
+
+// Kirim alert + kembali ke dashboard (pesan di-escape agar aman)
+const alertBack = (res, status, message) => {
+    const safe = JSON.stringify(message).replace(/</g, '\\u003c');
+    return res.status(status).send(`<script>alert(${safe}); window.location.href = '/dashboard';</script>`);
+};
+
+// Susun data tabel jadwal (mobil x 7 hari) untuk dirender di view
+function buildMatrix({ mobilList, bookings, startIso, todayIso, maxStartIso, userId, role }) {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const iso = addDays(startIso, i);
+        const dow = parseIso(iso).getUTCDay();
+        days.push({
+            iso,
+            dow: DOW_ID[dow],
+            label: shortDate(iso, false),
+            isToday: iso === todayIso,
+            isWeekend: dow === 0 || dow === 6
+        });
+    }
+
+    const isAdmin = role === 'admin';
+
+    const rows = mobilList.map((m) => {
+        const cells = [];
+        if (m.status === 'MAINTENANCE') {
+            cells.push({ type: 'maint', span: 7 });
+            return { mobil: m, cells };
+        }
+
+        const mine = bookings.filter((b) => String(b.mobil_id) === String(m.id));
+        let i = 0;
+        while (i < 7) {
+            const iso = days[i].iso;
+            const b = mine.find((x) => iso >= x.d_mulai && iso <= x.d_selesai);
+            if (b) {
+                let span = 1;
+                while (i + span < 7 && days[i + span].iso <= b.d_selesai) span++;
+                cells.push({
+                    type: 'booked',
+                    span,
+                    own: String(b.user_id) === String(userId),
+                    nama: b.nama_user,
+                    seksi: b.nama_seksi,
+                    tujuan: b.tujuan_peminjaman,
+                    mulai: shortDate(b.d_mulai, true),
+                    selesai: shortDate(b.d_selesai, true),
+                    clipL: b.d_mulai < iso,
+                    clipR: b.d_selesai > days[i + span - 1].iso
+                });
+                i += span;
+            } else {
+                let type = 'free';
+                if (iso < todayIso) type = 'past';
+                else if (!isAdmin && iso > maxStartIso) type = 'far';
+                cells.push({ type, span: 1, iso });
+                i += 1;
+            }
+        }
+        return { mobil: m, cells };
+    });
+
+    const endIso = days[6].iso;
+    const sameYear = startIso.slice(0, 4) === endIso.slice(0, 4);
+    const rangeLabel = `${shortDate(startIso, !sameYear)} - ${shortDate(endIso, true)}`;
+
+    return {
+        days,
+        rows,
+        startIso,
+        prevIso: addDays(startIso, -7),
+        nextIso: addDays(startIso, 7),
+        todayIso,
+        maxStartIso,
+        maxStartLabel: shortDate(maxStartIso, true),
+        rangeLabel,
+        isCurrentWeek: startIso === todayIso
+    };
+}
+
 // Main Dashboard
 router.get('/', async (req, res) => {
     try {
@@ -28,7 +133,36 @@ router.get('/', async (req, res) => {
             ORDER BY m.id ASC
         `);
         const mobilList = mobilRes.rows;
-        
+
+        // ===== Data tabel jadwal mingguan (mobil x 7 hari) =====
+        const todayIso = todayJakarta();
+        const maxStartIso = addDays(todayIso, 7);
+        const startIso = isValidIso(req.query.start) ? req.query.start : todayIso;
+        const endIso = addDays(startIso, 6);
+
+        const weekRes = await db.query(`
+            SELECT p.id, p.user_id, p.mobil_id, p.tujuan_peminjaman,
+                   TO_CHAR(p.tgl_mulai, 'YYYY-MM-DD') as d_mulai,
+                   TO_CHAR(p.tgl_selesai, 'YYYY-MM-DD') as d_selesai,
+                   u.nama as nama_user, u.nama_seksi
+            FROM peminjaman p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.status_peminjaman = 'APPROVED'
+              AND DATE(p.tgl_mulai) <= $2::date
+              AND DATE(p.tgl_selesai) >= $1::date
+            ORDER BY p.tgl_mulai ASC
+        `, [startIso, endIso]);
+
+        const matrix = buildMatrix({
+            mobilList,
+            bookings: weekRes.rows,
+            startIso,
+            todayIso,
+            maxStartIso,
+            userId: req.session.user.id,
+            role: req.session.user.role
+        });
+
         if (req.session.user.role === 'admin') {
             let whereClause = "WHERE 1=1";
             let queryParams = [];
@@ -68,6 +202,7 @@ router.get('/', async (req, res) => {
 
             res.render('dashboard_admin', { 
                 mobilList, 
+                matrix,
                 approvedList,
                 finishedList,
                 showAll: show_all === 'true',
@@ -95,7 +230,7 @@ router.get('/', async (req, res) => {
             `, userQueryParams);
 
             const myPinjam = myPinjamRes.rows;
-            res.render('dashboard_pegawai', { mobilList, pinjamList: myPinjam, showAll: show_all === 'true' });
+            res.render('dashboard_pegawai', { mobilList, matrix, pinjamList: myPinjam, showAll: show_all === 'true' });
         }
     } catch (err) {
         console.error('DETAIL ERROR DASHBOARD:', err);
@@ -127,109 +262,119 @@ router.get('/mobil/:id/jadwal', async (req, res) => {
     }
 });
 
+// API Endpoint: Jadwal peminjaman aktif milik seksi user yang sedang login
+// (dipakai form booking untuk memberi peringatan bila rentang tanggal PERSIS sama)
+router.get('/seksi/jadwal', async (req, res) => {
+    try {
+        const userRes = await db.query('SELECT nama_seksi FROM users WHERE id = $1', [req.session.user.id]);
+        const namaSeksi = userRes.rows[0] && userRes.rows[0].nama_seksi ? userRes.rows[0].nama_seksi.trim() : '';
+        if (!namaSeksi || namaSeksi === '-') return res.json([]);
+
+        const result = await db.query(`
+            SELECT p.id,
+                   TO_CHAR(p.tgl_mulai, 'YYYY-MM-DD') as d_mulai,
+                   TO_CHAR(p.tgl_selesai, 'YYYY-MM-DD') as d_selesai
+            FROM peminjaman p
+            JOIN users u ON p.user_id = u.id
+            WHERE LOWER(TRIM(u.nama_seksi)) = LOWER($1)
+              AND p.status_peminjaman = 'APPROVED'
+              AND DATE(p.tgl_selesai) >= CURRENT_DATE
+            ORDER BY p.tgl_mulai ASC
+        `, [namaSeksi]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Gagal mengambil jadwal seksi' });
+    }
+});
+
 // Pegawai: Ajukan Peminjaman
+// Aturan: mulai maksimal H+7, tanggal selesai bebas, tidak boleh bentrok dengan
+// peminjaman lain pada mobil yang sama, dan 1 seksi tidak boleh meminjam dengan
+// rentang tanggal yang persis sama (irisan tanggal masih diperbolehkan).
 router.post('/pinjam', async (req, res) => {
     const { mobil_id, tujuan, tgl_mulai, tgl_selesai } = req.body;
     const userId = req.session.user.id;
 
     try {
+        // Peminjaman dihitung per hari penuh: 00:00:00 s/d 23:59:59
+        const startDate = String(tgl_mulai || '').slice(0, 10);
+        const endDate = String(tgl_selesai || '').slice(0, 10);
+
+        if (!isValidIso(startDate) || !isValidIso(endDate)) {
+            return alertBack(res, 400, 'Gagal! Tanggal mulai dan tanggal selesai wajib dipilih dari kalender.');
+        }
+        if (!tujuan || !String(tujuan).trim()) {
+            return alertBack(res, 400, 'Gagal! Tujuan dinas / kegiatan wajib diisi.');
+        }
+
+        const tglMulaiDb = `${startDate} 00:00:00`;
+        const tglSelesaiDb = `${endDate} 23:59:59`;
+
         // 1. Cek Status Mobil (Kunci jika sedang MAINTENANCE)
         const mobilCheck = await db.query('SELECT status, merk_tipe, plat_nomor FROM mobil WHERE id = $1', [mobil_id]);
         if (mobilCheck.rows.length === 0) {
-            return res.status(404).send(`
-                <script>
-                    alert('Gagal! Unit mobil tidak ditemukan.');
-                    window.location.href = '/dashboard';
-                </script>
-            `);
+            return alertBack(res, 404, 'Gagal! Unit mobil tidak ditemukan.');
         }
-
         if (mobilCheck.rows[0].status === 'MAINTENANCE') {
-            return res.status(400).send(`
-                <script>
-                    alert('Gagal! Mobil ${mobilCheck.rows[0].merk_tipe} (${mobilCheck.rows[0].plat_nomor}) sedang dalam status MAINTENANCE dan tidak dapat dipinjam sampai admin mengubah statusnya menjadi FREE.');
-                    window.location.href = '/dashboard';
-                </script>
-            `);
+            return alertBack(res, 400, `Gagal! Mobil ${mobilCheck.rows[0].merk_tipe} (${mobilCheck.rows[0].plat_nomor}) sedang dalam status MAINTENANCE dan tidak dapat dipinjam sampai admin mengubah statusnya menjadi FREE.`);
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // 2. Validasi tanggal
+        const todayIso = todayJakarta();
+        const maxStartIso = addDays(todayIso, 7);
 
-        const start = new Date(tgl_mulai);
-        const end = new Date(tgl_selesai);
-
-        const maxAllowedStartDate = new Date(today);
-        maxAllowedStartDate.setDate(maxAllowedStartDate.getDate() + 7);
-        maxAllowedStartDate.setHours(23, 59, 59, 999);
-
-        if (start > maxAllowedStartDate) {
-            return res.status(400).send(`
-                <script>
-                    alert('Gagal! Tanggal mulai peminjaman maksimal H+7 dari hari ini.');
-                    window.location.href = '/dashboard';
-                </script>
-            `);
+        if (startDate < todayIso) {
+            return alertBack(res, 400, 'Gagal! Tanggal mulai peminjaman tidak boleh sebelum hari ini.');
+        }
+        if (startDate > maxStartIso) {
+            return alertBack(res, 400, 'Gagal! Tanggal mulai peminjaman maksimal H+7 dari hari ini.');
+        }
+        if (endDate < startDate) {
+            return alertBack(res, 400, 'Gagal! Tanggal selesai tidak boleh lebih awal dari tanggal mulai.');
         }
 
-        if (end < start) {
-            return res.status(400).send(`
-                <script>
-                    alert('Gagal! Tanggal selesai tidak boleh lebih awal dari tanggal mulai.');
-                    window.location.href = '/dashboard';
-                </script>
-            `);
-        }
-
-        // 2. Cek Bentrok Jadwal Unit Mobil yang Sama
+        // 3. Cek Bentrok Jadwal Unit Mobil yang Sama
         const overlapCheck = await db.query(`
             SELECT id FROM peminjaman 
             WHERE mobil_id = $1 
               AND status_peminjaman = 'APPROVED'
               AND (tgl_mulai <= $3 AND tgl_selesai >= $2)
-        `, [mobil_id, tgl_mulai, tgl_selesai]);
+        `, [mobil_id, tglMulaiDb, tglSelesaiDb]);
 
         if (overlapCheck.rows.length > 0) {
-            return res.status(400).send(`
-                <script>
-                    alert('Gagal! Tanggal yang Anda pilih pada mobil ini sudah ter-booking oleh pegawai lain.');
-                    window.location.href = '/dashboard';
-                </script>
-            `);
+            return alertBack(res, 400, 'Gagal! Tanggal yang Anda pilih pada mobil ini sudah ter-booking oleh pegawai lain.');
         }
 
-        // 3. Cek Bentrok Tanggal dari Seksi / Unit yang Sama (Kunci jika sudah ada peminjaman dari seksi yang sama di tanggal beririsan)
+        // 4. KUNCI SEKSI: satu seksi tidak boleh meminjam dengan rentang tanggal yang
+        //    PERSIS SAMA (tanggal mulai & selesai identik) dengan peminjaman aktif seksinya.
+        //    Tanggal yang berbeda atau hanya beririsan tetap diperbolehkan.
         const userRes = await db.query('SELECT nama_seksi FROM users WHERE id = $1', [userId]);
-        const namaSeksi = userRes.rows[0]?.nama_seksi ? userRes.rows[0].nama_seksi.trim() : '';
+        const namaSeksi = userRes.rows[0] && userRes.rows[0].nama_seksi ? userRes.rows[0].nama_seksi.trim() : '';
 
         if (namaSeksi && namaSeksi !== '-') {
-            const seksiOverlapCheck = await db.query(`
+            const seksiSamaCheck = await db.query(`
                 SELECT p.id, u.nama as nama_peminjam, m.merk_tipe, m.plat_nomor
                 FROM peminjaman p
                 JOIN users u ON p.user_id = u.id
                 JOIN mobil m ON p.mobil_id = m.id
                 WHERE LOWER(TRIM(u.nama_seksi)) = LOWER($1)
                   AND p.status_peminjaman = 'APPROVED'
-                  AND (p.tgl_mulai <= $3 AND p.tgl_selesai >= $2)
-            `, [namaSeksi, tgl_mulai, tgl_selesai]);
+                  AND DATE(p.tgl_mulai) = $2::date
+                  AND DATE(p.tgl_selesai) = $3::date
+            `, [namaSeksi, startDate, endDate]);
 
-            if (seksiOverlapCheck.rows.length > 0) {
-                const existing = seksiOverlapCheck.rows[0];
-                return res.status(400).send(`
-                    <script>
-                        alert('Gagal! Seksi ${namaSeksi} sudah memiliki jadwal peminjaman aktif pada tanggal tersebut (${existing.merk_tipe} - ${existing.plat_nomor} atas nama ${existing.nama_peminjam}).');
-                        window.location.href = '/dashboard';
-                    </script>
-                `);
+            if (seksiSamaCheck.rows.length > 0) {
+                const existing = seksiSamaCheck.rows[0];
+                return alertBack(res, 400, `Gagal! Seksi ${namaSeksi} sudah memiliki peminjaman dengan tanggal yang sama persis (${existing.merk_tipe} - ${existing.plat_nomor} atas nama ${existing.nama_peminjam}). Seksi yang sama tidak boleh meminjam pada rentang tanggal yang persis sama. Silakan pilih tanggal yang berbeda.`);
             }
         }
 
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        const diffDays = daysBetween(startDate, endDate) + 1;
 
         await db.query(
             'INSERT INTO peminjaman (user_id, mobil_id, tujuan_peminjaman, tgl_mulai, tgl_selesai, lama_pinjam_hari, status_peminjaman) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [userId, mobil_id, tujuan, tgl_mulai, tgl_selesai, diffDays, 'APPROVED']
+            [userId, mobil_id, String(tujuan).trim(), tglMulaiDb, tglSelesaiDb, diffDays, 'APPROVED']
         );
         res.redirect('/dashboard');
     } catch (err) {

@@ -1,58 +1,116 @@
 <%- include('partials/header') %>
 
-<!-- Flatpickr CSS & JS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<style>
-  .flatpickr-calendar {
-    font-family: inherit !important;
-    border-radius: 14px !important;
-    box-shadow: 0 18px 40px -10px rgba(14, 42, 92, 0.3) !important;
-    border: 1px solid #DCE2EC !important;
-    z-index: 9999 !important;
-  }
-  .flatpickr-current-month {
-    font-family: inherit !important;
-    font-weight: 700 !important;
-  }
-  .flatpickr-current-month .flatpickr-monthDropdown-months,
-  .flatpickr-current-month input.cur-year {
-    font-family: inherit !important;
-    font-weight: 700 !important;
-  }
-  .flatpickr-day.booked-date {
-    background-color: #fef08a !important;
-    color: #854d0e !important;
-    font-weight: 700 !important;
-    border-radius: 9999px !important;
-    border: 1px solid #fde047 !important;
-  }
-</style>
+<!-- Flatpickr (kalender) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/id.js"></script>
 
 <div class="mb-6 sm:mb-8">
     <h1 class="page-title">Panel Kontrol Administrator</h1>
-    <p class="page-sub">Kelola armada mobil dinas, pantau aktivitas, dan batalkan peminjaman jika diperlukan.</p>
+    <p class="page-sub">Pantau jadwal seluruh kendaraan dinas, kelola armada, dan batalkan peminjaman jika diperlukan.</p>
 </div>
 
-<!-- Form Tambah Mobil -->
-<section class="card p-4 sm:p-6 mb-8" aria-labelledby="tambahTitle">
-    <h2 id="tambahTitle" class="section-title mb-4 flex items-center gap-2">
-        <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-brandBlue text-white"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></span>
-        Tambah Unit Mobil Dinas Baru
-    </h2>
-    <form action="/dashboard/mobil/tambah" method="POST" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+<!-- Tabel Jadwal Mingguan (Mobil x 7 Hari) -->
+<section id="jadwal" class="card p-4 sm:p-6 mb-8" aria-labelledby="jadwalTitle">
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
+        <div>
+            <h2 id="jadwalTitle" class="section-title">Jadwal Pemakaian Kendaraan Dinas</h2>
+            <p class="text-xs text-slate-500 mt-1">Klik kotak peminjaman untuk melihat rincian peminjam. Klik nama mobil untuk membuka kalender unit.</p>
+        </div>
+        <div class="week-nav">
+            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.prevIso %>#jadwal"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg> 7 Hari Sebelumnya</a>
+            <span class="week-label"><%= matrix.rangeLabel %></span>
+            <a class="btn <%= matrix.isCurrentWeek ? 'btn-soft' : 'btn-ghost' %> btn-sm" href="/dashboard#jadwal">Hari Ini</a>
+            <a class="btn btn-ghost btn-sm" href="/dashboard?start=<%= matrix.nextIso %>#jadwal">7 Hari Berikutnya <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></a>
+        </div>
+    </div>
+
+    <div class="legend">
+        <span><i class="lg-free"></i>Tersedia</span>
+        <span><i class="lg-booked"></i>Ter-booking</span>
+        <span><i class="lg-maint"></i>Maintenance</span>
+    </div>
+
+    <div class="mx-wrap" tabindex="0" role="region" aria-label="Tabel jadwal pemakaian kendaraan">
+        <table class="mx">
+            <colgroup>
+                <col class="mx-col-unit">
+                <% matrix.days.forEach(() => { %><col><% }) %>
+            </colgroup>
+            <thead>
+                <tr>
+                    <th scope="col" class="mx-unit">Unit Kendaraan</th>
+                    <% matrix.days.forEach(d => { %>
+                    <th scope="col" class="<%= d.isToday ? 'is-today' : '' %> <%= d.isWeekend ? 'is-weekend' : '' %>"><%= d.label %><small><%= d.dow %></small></th>
+                    <% }) %>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (matrix.rows.length === 0) { %>
+                    <tr><td colspan="8" class="t-empty" style="padding:2rem 1rem;text-align:center;color:var(--faint);">Belum ada unit kendaraan yang terdaftar.</td></tr>
+                <% } %>
+                <% matrix.rows.forEach(r => { const m = r.mobil; %>
+                <tr>
+                    <th scope="row" class="mx-unit">
+                        <div class="unit-top">
+                            <span class="plate plate-sm"><%= m.plat_nomor %></span>
+                            <% if (m.status === 'MAINTENANCE') { %>
+                                <span class="badge badge-maint">MAINTENANCE</span>
+                            <% } else if (m.is_booked || m.status === 'DIPINJAM') { %>
+                                <span class="badge badge-busy">Booked</span>
+                            <% } else { %>
+                                <span class="badge badge-free">FREE</span>
+                            <% } %>
+                        </div>
+                        <button type="button" class="unit-name" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" onclick="openJadwalModal(this)"><%= m.merk_tipe %></button>
+                        <span class="unit-meta"><%= m.kategori %> &middot; <%= m.kapasitas %> Seat</span>
+                        <span class="unit-note" title="<%= m.kondapat_catatan || 'Siap pakai' %>">Kondisi: <%= m.kondapat_catatan || 'Siap pakai' %></span>
+                    </th>
+                    <% r.cells.forEach(c => { %>
+                        <% if (c.type === 'maint') { %>
+                            <td colspan="7" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - unit terkunci sampai admin mengubah status menjadi FREE</div></td>
+                        <% } else if (c.type === 'booked') { %>
+                            <td colspan="<%= c.span %>" class="day">
+                                <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
+                                    title="<%= c.nama %> (<%= c.seksi || '-' %>) | <%= c.tujuan %> | <%= c.mulai %> s/d <%= c.selesai %>"
+                                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
+                                    onclick="openJadwalModal(this)">
+                                    <span class="cell-name"><%= c.own ? 'Saya - ' : '' %><%= c.nama %></span>
+                                    <span class="cell-sub"><%= c.seksi || '-' %></span>
+                                </button>
+                            </td>
+                        <% } else if (c.type === 'free') { %>
+                            <td class="day"><div class="cell cell-free" title="Tersedia"></div></td>
+                        <% } else { %>
+                            <td class="day"><div class="cell cell-off" aria-hidden="true" title="<%= c.type === 'far' ? 'Tanggal mulai booking maksimal 7 hari dari hari ini' : 'Tanggal sudah lewat' %>">&ndash;</div></td>
+                        <% } %>
+                    <% }) %>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Form Tambah Mobil (bisa dilipat) -->
+<details class="card mb-8">
+    <summary>
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-brandBlue text-white" style="padding:.2rem;"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></span>
+        <span class="section-title">Tambah Unit Mobil Dinas Baru</span>
+        <svg class="chev" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+    </summary>
+    <form action="/dashboard/mobil/tambah" method="POST" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6">
         <div>
             <label for="add_plat" class="label">Plat Nomor</label>
-            <input type="text" id="add_plat" name="plat_nomor" placeholder="Contoh: B 1024 RFS" required class="field">
+            <input type="text" id="add_plat" name="plat_nomor" placeholder="Contoh: B 1024 RFS" required autocomplete="off" class="field">
         </div>
         <div>
             <label for="add_merk" class="label">Merek &amp; Tipe</label>
-            <input type="text" id="add_merk" name="merk_tipe" placeholder="Contoh: Toyota Innova" required class="field">
+            <input type="text" id="add_merk" name="merk_tipe" placeholder="Contoh: Toyota Innova" required autocomplete="off" class="field">
         </div>
         <div>
             <label for="add_kategori" class="label">Kategori</label>
-            <input type="text" id="add_kategori" name="kategori" placeholder="MPV / SUV / Sedan" required class="field">
+            <input type="text" id="add_kategori" name="kategori" placeholder="MPV / SUV / Sedan" required autocomplete="off" class="field">
         </div>
         <div>
             <label for="add_kapasitas" class="label">Kapasitas Kursi</label>
@@ -64,80 +122,72 @@
         </div>
         <div>
             <label for="add_catatan" class="label">Catatan Kondisi Awal</label>
-            <input type="text" id="add_catatan" name="kondapat_catatan" placeholder="Opsional" class="field">
+            <input type="text" id="add_catatan" name="kondapat_catatan" placeholder="Opsional" autocomplete="off" class="field">
         </div>
         <button type="submit" class="btn btn-primary sm:col-span-2 lg:col-span-3">Simpan Mobil</button>
     </form>
-</section>
+</details>
 
-<!-- Daftar Armada Mobil (Tanpa Dropdown Header) -->
-<section class="mb-10" aria-labelledby="kelolaTitle">
+<!-- Daftar Armada (tabel) -->
+<section class="card p-4 sm:p-6 mb-8" aria-labelledby="kelolaTitle">
     <h2 id="kelolaTitle" class="section-title mb-4">Kelola Daftar Mobil<span class="count-chip"><%= mobilList.length %> unit</span></h2>
 
-    <% if (mobilList.length === 0) { %>
-        <div class="card p-8 text-center text-sm text-slate-500">Belum ada unit mobil. Tambahkan unit pertama lewat form di atas.</div>
-    <% } %>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        <% mobilList.forEach(m => { %>
-        <article class="car-card">
-            <div class="car-top">
-                <span class="plate"><%= m.plat_nomor %></span>
-                <% if(m.is_booked || m.status === 'DIPINJAM') { %>
-                    <span class="badge badge-busy">Booked</span>
-                <% } else if(m.status === 'FREE') { %>
-                    <span class="badge badge-free">FREE</span>
-                <% } else { %>
-                    <span class="badge badge-maint">MAINTENANCE</span>
+    <div class="tbl-wrap">
+        <table class="tbl" style="min-width:56rem;">
+            <thead>
+                <tr>
+                    <th>Unit</th>
+                    <th>Kategori</th>
+                    <th>Kapasitas</th>
+                    <th>Tahun</th>
+                    <th>Status</th>
+                    <th>Catatan Kondisi</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (mobilList.length === 0) { %>
+                    <tr><td colspan="7" class="t-empty">Belum ada unit mobil. Tambahkan unit pertama lewat form di atas.</td></tr>
                 <% } %>
-            </div>
-
-            <div>
-                <h3 class="car-name"><%= m.merk_tipe %></h3>
-            </div>
-
-            <dl class="spec">
-                <div><dt>Kategori</dt><dd><%= m.kategori %></dd></div>
-                <div><dt>Kapasitas</dt><dd><%= m.kapasitas %> Seat</dd></div>
-                <div><dt>Tahun</dt><dd><%= m.tahun %></dd></div>
-            </dl>
-
-            <p class="car-note"><strong>Catatan:</strong> <%= m.kondapat_catatan || '-' %></p>
-
-            <div class="car-actions">
-                <button type="button"
-                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>"
-                    onclick="openAdminJadwalModal(this.dataset.id, this.dataset.merk, this.dataset.plat)"
-                    class="btn btn-amber btn-block">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                    Lihat Jadwal &amp; Kalender Booking
-                </button>
-                <div class="btn-row">
-                    <button type="button"
-                        data-id="<%= m.id %>"
-                        data-plat="<%= m.plat_nomor %>"
-                        data-merk="<%= m.merk_tipe %>"
-                        data-kategori="<%= m.kategori %>"
-                        data-kapasitas="<%= m.kapasitas %>"
-                        data-tahun="<%= m.tahun %>"
-                        data-status="<%= m.status %>"
-                        data-catatan="<%= m.kondapat_catatan || '' %>"
-                        onclick="openEditModal(this)"
-                        class="btn btn-soft">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
-                        Edit
-                    </button>
-                    <form action="/dashboard" method="POST" data-confirm="Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?" onsubmit="return confirm(this.dataset.confirm);">
-                        <input type="hidden" name="mobil_id" value="<%= m.id %>">
-                        <button type="submit" class="btn btn-danger btn-block" formdataaction="/dashboard/mobil/hapus">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-                            Hapus
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </article>
-        <% }) %>
+                <% mobilList.forEach(m => { %>
+                <tr>
+                    <td class="whitespace-nowrap"><span class="plate plate-sm"><%= m.plat_nomor %></span><span class="t-strong" style="display:block;margin-top:.3rem;"><%= m.merk_tipe %></span></td>
+                    <td><%= m.kategori %></td>
+                    <td class="whitespace-nowrap"><%= m.kapasitas %> Seat</td>
+                    <td><%= m.tahun %></td>
+                    <td class="whitespace-nowrap">
+                        <% if (m.status === 'MAINTENANCE') { %>
+                            <span class="badge badge-maint">MAINTENANCE</span>
+                        <% } else if (m.is_booked || m.status === 'DIPINJAM') { %>
+                            <span class="badge badge-busy">Booked</span>
+                        <% } else { %>
+                            <span class="badge badge-free">FREE</span>
+                        <% } %>
+                    </td>
+                    <td><%= m.kondapat_catatan || '-' %></td>
+                    <td class="whitespace-nowrap">
+                        <div class="flex gap-2">
+                            <button type="button"
+                                data-id="<%= m.id %>"
+                                data-plat="<%= m.plat_nomor %>"
+                                data-merk="<%= m.merk_tipe %>"
+                                data-kategori="<%= m.kategori %>"
+                                data-kapasitas="<%= m.kapasitas %>"
+                                data-tahun="<%= m.tahun %>"
+                                data-status="<%= m.status %>"
+                                data-catatan="<%= m.kondapat_catatan || '' %>"
+                                onclick="openEditModal(this)"
+                                class="btn btn-soft btn-sm">Edit</button>
+                            <form action="/dashboard/mobil/hapus" method="POST" data-confirm="Apakah Anda yakin ingin menghapus mobil <%= m.merk_tipe %> (<%= m.plat_nomor %>)?" onsubmit="return confirm(this.dataset.confirm);">
+                                <input type="hidden" name="mobil_id" value="<%= m.id %>">
+                                <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
     </div>
 </section>
 
@@ -153,6 +203,7 @@
 
         <!-- Form Filter 2 Opsi: Bulan & No. Kendaraan -->
         <form action="/dashboard" method="GET" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="start" value="<%= matrix.startIso %>">
             <!-- 1. Filter Bulan & Tahun -->
             <select name="bulan" aria-label="Filter bulan" class="field field-sm" style="width:auto;">
                 <option value=""> Filter Bulan </option>
@@ -271,7 +322,7 @@
 </section>
 
 <!-- Modal Pop-Up Edit Mobil -->
-<div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-3 sm:p-4">
+<div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-2 sm:p-4">
     <div class="modal-panel max-w-lg max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
         <div class="modal-head">
             <h3 id="editModalTitle" class="modal-title">Edit Data Mobil</h3>
@@ -325,56 +376,122 @@
     </div>
 </div>
 
-<!-- Modal Admin Cek Jadwal & Kalender -->
-<div id="adminJadwalModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-3 sm:p-4">
-    <div class="modal-panel max-w-lg max-h-[85vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="adminJadwalTitle">
+<!-- Modal Jadwal Unit (kalender + daftar peminjam) -->
+<div id="jadwalModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-2 sm:p-4">
+    <div class="modal-panel max-w-md max-h-[92vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="jadwalMobilTitle">
         <div class="modal-head">
             <div class="min-w-0">
-                <h3 id="adminJadwalTitle" class="modal-title truncate"></h3>
-                <p id="adminJadwalPlat" class="plate plate-sm mt-1"></p>
+                <h3 id="jadwalMobilTitle" class="modal-title"></h3>
+                <p id="jadwalMobilPlat" class="plate plate-sm mt-1"></p>
             </div>
-            <button type="button" onclick="closeAdminJadwalModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <button type="button" onclick="closeJadwalModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         </div>
 
-        <div class="space-y-4">
-            <div>
-                <button id="adminCalendarBtn" type="button" class="w-full py-2.5 px-4 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 font-bold text-xs hover:bg-slate-200 transition text-left flex items-center justify-between">
-                    <span>📅 Melihat Tanggal Ter-booking</span>
-                    <span class="text-slate-500 font-normal text-[11px]">Klik untuk lihat kalender</span>
-                </button>
-                <input type="text" id="adminCalendarView" class="hidden">
-            </div>
+        <div class="cal-box fp-readonly"><input type="text" id="jadwalCalendar" class="hidden" tabindex="-1" aria-hidden="true"></div>
+        <p class="hint text-center">Tanggal berlatar <strong>kuning</strong> sudah ter-booking.</p>
 
-            <div>
-                <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
-                <div id="adminJadwalList">
-                    <p class="text-xs text-slate-400">Memuat data jadwal...</p>
-                </div>
-            </div>
+        <div class="mt-4">
+            <h4 class="label mb-2">Daftar Rincian Peminjam</h4>
+            <div id="jadwalList"><p class="text-xs text-slate-400">Memuat data jadwal...</p></div>
         </div>
 
         <div class="modal-foot">
-            <button type="button" onclick="closeAdminJadwalModal()" class="btn btn-ghost">Tutup</button>
+            <button type="button" onclick="closeJadwalModal()" class="btn btn-ghost">Tutup</button>
         </div>
     </div>
 </div>
 
 <script>
-let fpAdmin;
-
+// ---------- Utilitas ----------
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
 }
+const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
+const LOCALE_ID = (window.flatpickr && flatpickr.l10ns && flatpickr.l10ns.id) ? flatpickr.l10ns.id : 'default';
 
-const CAL_ICON = '<svg class="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 0121 11.25v7.5"/></svg>';
+function pad2(n) { return String(n).padStart(2, '0'); }
+function dayIso(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function inRanges(iso, ranges) { return ranges.some(function (r) { return iso >= r.from && iso <= r.to; }); }
+function toRange(item) { return { from: item.tgl_mulai.split('T')[0], to: item.tgl_selesai.split('T')[0] }; }
+function fmtLong(d) { return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); }
+
+function openModal(id) {
+    document.body.classList.add('overflow-hidden');
+    const m = document.getElementById(id);
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+function closeModal(id) {
+    document.body.classList.remove('overflow-hidden');
+    const m = document.getElementById(id);
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+}
+
+// ---------- Modal Jadwal Unit (kalender baca-saja + daftar peminjam) ----------
+let fpView = null;
+
+function renderJadwalList(data) {
+    const container = document.getElementById('jadwalList');
+    if (data.length === 0) {
+        container.innerHTML = '<div class="sched-empty">Belum ada jadwal booking. Mobil ini bebas dipinjam.</div>';
+        return;
+    }
+    let html = '';
+    data.forEach(function (item) {
+        const tglStart = item.tgl_mulai_str || item.tgl_mulai.split('T')[0];
+        const tglEnd = item.tgl_selesai_str || item.tgl_selesai.split('T')[0];
+        html += '<div class="sched-item">' +
+            '<div class="flex justify-between items-center gap-2">' +
+                '<span class="font-bold text-slate-900 truncate">' + esc(item.nama_peminjam) + ' (' + esc(item.nama_seksi || '-') + ')</span>' +
+                '<span class="badge badge-free shrink-0">APPROVED</span>' +
+            '</div>' +
+            '<p class="text-slate-600 break-words mt-1"><strong>Tujuan:</strong> ' + esc(item.tujuan_peminjaman) + '</p>' +
+            '<p class="text-brandBlue font-semibold mt-1">' + CAL_ICON + tglStart + ' s/d ' + tglEnd + '</p>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+}
+
+function closeJadwalModal() {
+    closeModal('jadwalModal');
+}
+
+function openJadwalModal(el) {
+    document.getElementById('jadwalMobilTitle').innerText = el.dataset.merk;
+    document.getElementById('jadwalMobilPlat').innerText = el.dataset.plat;
+    document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-slate-400">Memuat data jadwal...</p>';
+    openModal('jadwalModal');
+
+    fetch('/dashboard/mobil/' + encodeURIComponent(el.dataset.id) + '/jadwal')
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (!Array.isArray(data)) throw new Error('format');
+            const ranges = data.map(toRange);
+            if (fpView) { fpView.destroy(); fpView = null; }
+            fpView = flatpickr('#jadwalCalendar', {
+                inline: true,
+                locale: LOCALE_ID,
+                onDayCreate: function (dObj, dStr, fp, dayElem) {
+                    if (inRanges(dayIso(dayElem.dateObj), ranges)) {
+                        dayElem.classList.add('booked-date');
+                        dayElem.title = 'Sudah ter-booking';
+                    }
+                }
+            });
+            renderJadwalList(data);
+        })
+        .catch(function () {
+            document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman.</p>';
+        });
+}
 
 function switchTab(category) {
-    const categories = ['approved', 'finished'];
-    categories.forEach(cat => {
-        const tabBtn = document.getElementById(`tab-${cat}`);
-        const contentDiv = document.getElementById(`content-${cat}`);
+    ['approved', 'finished'].forEach(function (cat) {
+        const tabBtn = document.getElementById('tab-' + cat);
+        const contentDiv = document.getElementById('content-' + cat);
         if (cat === category) {
             tabBtn.classList.add('is-active');
             tabBtn.setAttribute('aria-selected', 'true');
@@ -396,97 +513,11 @@ function openEditModal(btn) {
     document.getElementById('edit_tahun').value = btn.getAttribute('data-tahun');
     document.getElementById('edit_status').value = btn.getAttribute('data-status');
     document.getElementById('edit_kondapat_catatan').value = btn.getAttribute('data-catatan');
-
-    document.body.classList.add('overflow-hidden');
-    const modal = document.getElementById('editModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModal('editModal');
 }
 
 function closeEditModal() {
-    document.body.classList.remove('overflow-hidden');
-    const modal = document.getElementById('editModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-function openAdminJadwalModal(mobilId, merk, plat) {
-    document.getElementById('adminJadwalTitle').innerText = merk;
-    document.getElementById('adminJadwalPlat').innerText = plat;
-
-    const container = document.getElementById('adminJadwalList');
-    container.innerHTML = '<p class="text-xs text-slate-400">Memuat data jadwal...</p>';
-
-    fetch(`/dashboard/mobil/${mobilId}/jadwal`)
-        .then(res => res.json())
-        .then(data => {
-            const disableRanges = [];
-            data.forEach(item => {
-                disableRanges.push({
-                    from: item.tgl_mulai.split('T')[0],
-                    to: item.tgl_selesai.split('T')[0]
-                });
-            });
-
-            if (fpAdmin) fpAdmin.destroy();
-            fpAdmin = flatpickr("#adminCalendarView", {
-                inline: false,
-                dateFormat: "Y-m-d",
-                disable: disableRanges,
-                onDayCreate: function(dObj, dStr, fp, dayElem) {
-                    const dayDate = dayElem.dateObj;
-                    disableRanges.forEach(range => {
-                        const start = new Date(range.from + 'T00:00:00');
-                        const end = new Date(range.to + 'T23:59:59');
-                        if (dayDate >= start && dayDate <= end) {
-                            dayElem.classList.add("booked-date");
-                            dayElem.title = "Sudah ter-booking";
-                        }
-                    });
-                }
-            });
-
-            document.getElementById('adminCalendarBtn').onclick = () => {
-                fpAdmin.open();
-            };
-
-            if (data.length === 0) {
-                container.innerHTML = '<div class="sched-empty">Belum ada peminjaman terdaftar pada unit ini.</div>';
-                return;
-            }
-            let html = '';
-            data.forEach(item => {
-                const tglStart = item.tgl_mulai_str || item.tgl_mulai.split('T')[0];
-                const tglEnd = item.tgl_selesai_str || item.tgl_selesai.split('T')[0];
-
-                html += `
-                    <div class="sched-item">
-                        <div class="flex justify-between items-center gap-2">
-                            <span class="font-bold text-slate-900 truncate">${esc(item.nama_peminjam)} (${esc(item.nama_seksi || '-')})</span>
-                            <span class="badge badge-free shrink-0">APPROVED</span>
-                        </div>
-                        <p class="text-slate-600 break-words mt-1"><strong>Tujuan:</strong> ${esc(item.tujuan_peminjaman)}</p>
-                        <p class="text-brandBlue font-semibold mt-1">${CAL_ICON}${tglStart} s/d ${tglEnd}</p>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        })
-        .catch(err => {
-            container.innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman.</p>';
-        });
-
-    document.body.classList.add('overflow-hidden');
-    const modal = document.getElementById('adminJadwalModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-
-function closeAdminJadwalModal() {
-    document.body.classList.remove('overflow-hidden');
-    const modal = document.getElementById('adminJadwalModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeModal('editModal');
 }
 </script>
 
