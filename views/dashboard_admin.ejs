@@ -7,7 +7,7 @@
 
 <div class="mb-6 sm:mb-8">
     <h1 class="page-title">Panel Kontrol Administrator</h1>
-    <p class="page-sub">Setujui atau tolak pengajuan peminjaman pegawai, pantau jadwal kendaraan dinas, dan kelola kendaraan.</p>
+    <p class="page-sub">Setujui, tolak, atau alihkan unit mobil pada pengajuan peminjaman pegawai, pantau jadwal kendaraan dinas, dan kelola kendaraan.</p>
 </div>
 
 <!-- Tabel Jadwal (Mobil x 14 Hari) — hanya menampilkan peminjaman yang sudah APPROVED -->
@@ -130,7 +130,7 @@
         </form>
     </div>
 
-    <!-- Navigation Tabs Kategori (Default aktif: Menunggu Persetujuan jika ada, atau Approved) -->
+    <!-- Navigation Tabs Kategori -->
     <% var defaultPending = pendingList.length > 0; %>
     <div class="seg mb-4" role="tablist">
         <button type="button" onclick="switchTab('pending')" id="tab-pending" role="tab" aria-selected="<%= defaultPending ? 'true' : 'false' %>" class="<%= defaultPending ? 'is-active' : '' %>">
@@ -173,11 +173,22 @@
                         <td class="whitespace-nowrap"><span class="badge badge-busy">DIAJUKAN</span></td>
                         <td class="whitespace-nowrap">
                             <div class="flex items-center gap-2">
+                                <button type="button"
+                                    data-id="<%= p.id %>"
+                                    data-user="<%= p.nama_user %>"
+                                    data-seksi="<%= p.nama_seksi || '-' %>"
+                                    data-mobil-id="<%= p.mobil_id %>"
+                                    data-tujuan="<%= p.tujuan_peminjaman %>"
+                                    data-mulai="<%= p.tgl_mulai_iso %>"
+                                    data-selesai="<%= p.tgl_selesai_iso %>"
+                                    data-status="DIAJUKAN"
+                                    onclick="openEditPinjamModal(this)"
+                                    class="btn btn-soft btn-sm">Edit / Alihkan</button>
                                 <form action="/dashboard/admin/peminjaman/status" method="POST">
                                     <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
                                     <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
                                     <input type="hidden" name="status_peminjaman" value="APPROVED">
-                                    <button type="submit" class="btn btn-primary btn-sm">Setujui (Approve)</button>
+                                    <button type="submit" class="btn btn-primary btn-sm">Setujui</button>
                                 </form>
                                 <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Tolak pengajuan peminjaman dari <%= p.nama_user %>?');">
                                     <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
@@ -205,7 +216,7 @@
                         <th>Mobil</th>
                         <th>Tujuan</th>
                         <th>Durasi</th>
-                        <th>Opsi / Batal</th>
+                        <th>Opsi / Alihkan / Batal</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -220,12 +231,25 @@
                         <td><%= p.tujuan_peminjaman %></td>
                         <td class="whitespace-nowrap"><span class="t-strong"><%= p.lama_pinjam_hari %> Hari</span><span class="t-sub"><%= p.tgl_mulai_fmt %> - <%= p.tgl_selesai_fmt %></span></td>
                         <td class="whitespace-nowrap">
-                            <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Batalkan/Reject peminjaman ini? Jadwal booking akan dihapus dari tabel.');">
-                                <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
-                                <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
-                                <input type="hidden" name="status_peminjaman" value="REJECTED">
-                                <button type="submit" class="btn btn-danger btn-sm">Batalkan (Reject)</button>
-                            </form>
+                            <div class="flex items-center gap-2">
+                                <button type="button"
+                                    data-id="<%= p.id %>"
+                                    data-user="<%= p.nama_user %>"
+                                    data-seksi="<%= p.nama_seksi || '-' %>"
+                                    data-mobil-id="<%= p.mobil_id %>"
+                                    data-tujuan="<%= p.tujuan_peminjaman %>"
+                                    data-mulai="<%= p.tgl_mulai_iso %>"
+                                    data-selesai="<%= p.tgl_selesai_iso %>"
+                                    data-status="APPROVED"
+                                    onclick="openEditPinjamModal(this)"
+                                    class="btn btn-soft btn-sm">Edit / Alihkan</button>
+                                <form action="/dashboard/admin/peminjaman/status" method="POST" onsubmit="return confirm('Batalkan/Reject peminjaman ini? Jadwal booking akan dihapus dari tabel.');">
+                                    <input type="hidden" name="peminjaman_id" value="<%= p.id %>">
+                                    <input type="hidden" name="mobil_id" value="<%= p.mobil_id %>">
+                                    <input type="hidden" name="status_peminjaman" value="REJECTED">
+                                    <button type="submit" class="btn btn-danger btn-sm">Batalkan</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     <% }) %>
@@ -373,6 +397,55 @@
     </div>
 </section>
 
+<!-- Modal Pop-Up Edit / Alihkan Pengajuan Peminjaman -->
+<div id="editPinjamModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-2 sm:p-4">
+    <div class="modal-panel max-w-lg max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="editPinjamModalTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="editPinjamModalTitle" class="modal-title">Edit / Alihkan Unit Peminjaman</h3>
+                <p id="editPinjamSub" class="text-xs text-slate-500 mt-1"></p>
+            </div>
+            <button type="button" onclick="closeEditPinjamModal()" class="icon-btn" aria-label="Tutup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <form action="/dashboard/admin/peminjaman/edit" method="POST" class="space-y-3">
+            <input type="hidden" id="ep_peminjaman_id" name="peminjaman_id">
+
+            <div>
+                <label for="ep_mobil_id" class="label">Pilih Unit Mobil / Nomor Polisi</label>
+                <select id="ep_mobil_id" name="mobil_id" required class="field">
+                    <% mobilList.forEach(m => { %>
+                    <option value="<%= m.id %>" <%= m.status === 'MAINTENANCE' ? 'disabled' : '' %>>
+                        <%= m.plat_nomor %> - <%= m.merk_tipe %> (<%= m.kapasitas %> Seat)<%= m.status === 'MAINTENANCE' ? ' [MAINTENANCE]' : '' %>
+                    </option>
+                    <% }) %>
+                </select>
+                <p class="hint">Pilih nomor polisi lain untuk mengalihkan kendaraan pegawai ini.</p>
+            </div>
+
+            <div>
+                <label for="ep_tujuan" class="label">Tujuan Dinas / Kegiatan</label>
+                <input type="text" id="ep_tujuan" name="tujuan_peminjaman" required class="field">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="ep_tgl_mulai" class="label">Tanggal Mulai</label>
+                    <input type="date" id="ep_tgl_mulai" name="tgl_mulai" required class="field">
+                </div>
+                <div>
+                    <label for="ep_tgl_selesai" class="label">Tanggal Selesai</label>
+                    <input type="date" id="ep_tgl_selesai" name="tgl_selesai" required class="field">
+                </div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" onclick="closeEditPinjamModal()" class="btn btn-ghost">Batal</button>
+                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Pop-Up Edit Mobil -->
 <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-2 sm:p-4">
     <div class="modal-panel max-w-lg max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
@@ -468,6 +541,29 @@ function dayIso(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-'
 function inRanges(iso, ranges) { return ranges.some(function (r) { return iso >= r.from && iso <= r.to; }); }
 function toRange(item) { return { from: item.tgl_mulai.split('T')[0], to: item.tgl_selesai.split('T')[0] }; }
 
+// Fetch JSON dengan auto-retry (mengatasi cold start Vercel / database)
+async function fetchJsonRetry(url, retries = 2) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const res = await fetch(url, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (res.status === 401 || res.redirected) {
+                throw new Error('SESSION_EXPIRED');
+            }
+            if (!res.ok) {
+                throw new Error('HTTP_' + res.status);
+            }
+            return await res.json();
+        } catch (err) {
+            if (err.message === 'SESSION_EXPIRED' || attempt === retries) throw err;
+            await new Promise(function (r) { setTimeout(r, 800); });
+        }
+    }
+}
+
 function openModal(id) {
     document.body.classList.add('overflow-hidden');
     const m = document.getElementById(id);
@@ -481,7 +577,7 @@ function closeModal(id) {
     m.classList.remove('flex');
 }
 
-// ---------- Modal Jadwal Unit (kalender baca-saja + daftar peminjam) ----------
+// ---------- Modal Jadwal Unit ----------
 let fpView = null;
 
 function renderJadwalList(data) {
@@ -516,8 +612,7 @@ function openJadwalModal(el) {
     document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-slate-400">Memuat data jadwal...</p>';
     openModal('jadwalModal');
 
-    fetch('/dashboard/mobil/' + encodeURIComponent(el.dataset.id) + '/jadwal')
-        .then(function (res) { return res.json(); })
+    fetchJsonRetry('/dashboard/mobil/' + encodeURIComponent(el.dataset.id) + '/jadwal')
         .then(function (data) {
             if (!Array.isArray(data)) throw new Error('format');
             const ranges = data.map(toRange);
@@ -534,8 +629,13 @@ function openJadwalModal(el) {
             });
             renderJadwalList(data);
         })
-        .catch(function () {
-            document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman.</p>';
+        .catch(function (err) {
+            if (err && err.message === 'SESSION_EXPIRED') {
+                alert('Sesi login Anda telah habis. Silakan login kembali.');
+                window.location.href = '/login';
+                return;
+            }
+            document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman. Silakan tutup dan coba buka lagi.</p>';
         });
 }
 
@@ -553,6 +653,20 @@ function switchTab(category) {
             contentDiv.classList.add('hidden');
         }
     });
+}
+
+function openEditPinjamModal(btn) {
+    document.getElementById('ep_peminjaman_id').value = btn.getAttribute('data-id');
+    document.getElementById('ep_mobil_id').value = btn.getAttribute('data-mobil-id');
+    document.getElementById('ep_tujuan').value = btn.getAttribute('data-tujuan');
+    document.getElementById('ep_tgl_mulai').value = btn.getAttribute('data-mulai');
+    document.getElementById('ep_tgl_selesai').value = btn.getAttribute('data-selesai');
+    document.getElementById('editPinjamSub').innerText = 'Peminjam: ' + btn.getAttribute('data-user') + ' (' + btn.getAttribute('data-seksi') + ') — Status: ' + btn.getAttribute('data-status');
+    openModal('editPinjamModal');
+}
+
+function closeEditPinjamModal() {
+    closeModal('editPinjamModal');
 }
 
 function openEditModal(btn) {

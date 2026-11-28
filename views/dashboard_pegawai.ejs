@@ -71,15 +71,15 @@
                         <% if (c.type === 'maint') { %>
                             <td colspan="<%= c.span %>" class="day"><div class="cell cell-maint"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> Maintenance - Mohon memilih unit lain.</div></td>
                         <% } else if (c.type === 'booked') { %>
-    <td colspan="<%= c.span %>" class="day">
-        <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
-            title="<%= c.nama %> (<%= c.seksi || '-' %>) | <%= c.tujuan %> | <%= c.mulai %> s/d <%= c.selesai %>"
-            data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
-            onclick="openJadwalModal(this)">
-            <span class="cell-name"><%= c.own ? 'Saya - ' : '' %><%= c.nama %></span>
-            <span class="cell-sub"><%= c.seksi || '-' %></span>
-        </button>
-    </td>
+                            <td colspan="<%= c.span %>" class="day">
+                                <button type="button" class="cell cell-booked <%= c.own ? 'is-own' : '' %> <%= c.clipL ? 'clip-l' : '' %> <%= c.clipR ? 'clip-r' : '' %>"
+                                    title="<%= c.nama %> (<%= c.seksi || '-' %>) | <%= c.tujuan %> | <%= c.mulai %> s/d <%= c.selesai %>"
+                                    data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>"
+                                    onclick="openJadwalModal(this)">
+                                    <span class="cell-name"><%= c.own ? 'Saya - ' : '' %><%= c.nama %></span>
+                                    <span class="cell-sub"><%= c.seksi || '-' %></span>
+                                </button>
+                            </td>
                         <% } else if (c.type === 'free') { %>
                             <td class="day"><button type="button" class="cell cell-free" title="Ajukan peminjaman <%= m.merk_tipe %> pada <%= c.iso %>" aria-label="Ajukan peminjaman <%= m.merk_tipe %> pada <%= c.iso %>" data-id="<%= m.id %>" data-merk="<%= m.merk_tipe %>" data-plat="<%= m.plat_nomor %>" data-status="<%= m.status %>" data-date="<%= c.iso %>" onclick="openBookingFromCell(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button></td>
                         <% } else { %>
@@ -246,6 +246,29 @@ function inRanges(iso, ranges) { return ranges.some(function (r) { return iso >=
 function toRange(item) { return { from: item.tgl_mulai.split('T')[0], to: item.tgl_selesai.split('T')[0] }; }
 function fmtLong(d) { return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); }
 
+// Fetch JSON dengan auto-retry (mengatasi cold start Vercel / database)
+async function fetchJsonRetry(url, retries = 2) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const res = await fetch(url, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (res.status === 401 || res.redirected) {
+                throw new Error('SESSION_EXPIRED');
+            }
+            if (!res.ok) {
+                throw new Error('HTTP_' + res.status);
+            }
+            return await res.json();
+        } catch (err) {
+            if (err.message === 'SESSION_EXPIRED' || attempt === retries) throw err;
+            await new Promise(function (r) { setTimeout(r, 800); });
+        }
+    }
+}
+
 function openModal(id) {
     document.body.classList.add('overflow-hidden');
     const m = document.getElementById(id);
@@ -259,7 +282,7 @@ function closeModal(id) {
     m.classList.remove('flex');
 }
 
-// ---------- Modal Jadwal Unit (kalender baca-saja + daftar peminjam) ----------
+// ---------- Modal Jadwal Unit ----------
 let fpView = null;
 
 function renderJadwalList(data) {
@@ -298,8 +321,7 @@ function openJadwalModal(el) {
     document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-slate-400">Memuat data jadwal...</p>';
     openModal('jadwalModal');
 
-    fetch('/dashboard/mobil/' + encodeURIComponent(currentMobil.id) + '/jadwal')
-        .then(function (res) { return res.json(); })
+    fetchJsonRetry('/dashboard/mobil/' + encodeURIComponent(currentMobil.id) + '/jadwal')
         .then(function (data) {
             if (!Array.isArray(data)) throw new Error('format');
             const ranges = data.map(toRange);
@@ -316,8 +338,13 @@ function openJadwalModal(el) {
             });
             renderJadwalList(data);
         })
-        .catch(function () {
-            document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman.</p>';
+        .catch(function (err) {
+            if (err && err.message === 'SESSION_EXPIRED') {
+                alert('Sesi login Anda telah habis. Silakan login kembali.');
+                window.location.href = '/login';
+                return;
+            }
+            document.getElementById('jadwalList').innerHTML = '<p class="text-xs text-rose-600">Gagal memuat jadwal peminjaman. Silakan tutup dan buka kembali.</p>';
         });
 }
 
@@ -395,8 +422,8 @@ function openBookingModal(mobil, presetDate) {
     openModal('bookingModal');
 
     Promise.all([
-        fetch('/dashboard/mobil/' + encodeURIComponent(mobil.id) + '/jadwal').then(function (r) { return r.json(); }),
-        fetch('/dashboard/seksi/jadwal').then(function (r) { return r.json(); })
+        fetchJsonRetry('/dashboard/mobil/' + encodeURIComponent(mobil.id) + '/jadwal'),
+        fetchJsonRetry('/dashboard/seksi/jadwal')
     ]).then(function (res) {
         const car = Array.isArray(res[0]) ? res[0] : [];
         const seksi = Array.isArray(res[1]) ? res[1] : [];
@@ -422,8 +449,13 @@ function openBookingModal(mobil, presetDate) {
             onChange: function (selectedDates) { updateSummary(selectedDates); },
             onReady: function (selectedDates) { updateSummary(selectedDates); }
         });
-    }).catch(function () {
-        document.getElementById('rangeSummary').innerHTML = 'Gagal memuat kalender. Muat ulang halaman lalu coba lagi.';
+    }).catch(function (err) {
+        if (err && err.message === 'SESSION_EXPIRED') {
+            alert('Sesi login Anda telah habis. Silakan login kembali.');
+            window.location.href = '/login';
+            return;
+        }
+        document.getElementById('rangeSummary').innerHTML = '<span class="text-rose-600 font-semibold">Gagal memuat kalender (koneksi server lambat).</span> <button type="button" class="underline text-brandBlue font-bold ml-1" onclick="openBookingModal(currentMobil, \'' + (presetDate || '') + '\')">Coba Lagi</button>';
     });
 }
 
